@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { signIn, trackErrors } from './helpers';
+import { signIn, trackErrors, waitHydrated } from './helpers';
 
 // Browsing is public; writing code and grading need an account. Company
 // choice changes how scores are weighted.
@@ -9,6 +9,7 @@ test('signed out: landing, question list, company page and a question page all r
 }) => {
   const errors = trackErrors(page);
   await page.goto('/');
+  await waitHydrated(page);
   await expect(page.locator('h1')).toContainText(
     'Practice the coding and system design',
   );
@@ -48,6 +49,7 @@ test('signed out: landing, question list, company page and a question page all r
 
 test('the question list filters by company', async ({ page }) => {
   await page.goto('/questions');
+  await waitHydrated(page);
   await expect(page.locator('.qcard').first()).toBeVisible();
   const all = await page.locator('.qcard').count();
   await page.locator('[data-id="filter-uber"]').click();

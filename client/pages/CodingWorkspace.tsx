@@ -43,6 +43,7 @@ const ICON: Record<string, string> = {
 // (client/workspaces.ts); the server renders CodingPage's preview instead.
 export default function CodingApp({
   q,
+  lang: picked,
 }: CodingWorkspaceProps): React.ReactElement {
   const { socket, userId } = useTypedApp();
   // The saved draft for the language on screen; null while loading.
@@ -52,13 +53,17 @@ export default function CodingApp({
   } | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  // Only the latest load may set state (a language click can start a second).
+  const loadSeq = useRef(0);
   const load = useCallback(
     async (want?: Language) => {
+      const seq = ++loadSeq.current;
       setLoadError(null);
       try {
         await importLocalOnce(socket, userId);
         const res = await socket.request('codingGet', { questionId: q.id });
         const lang = q.python ? (want ?? res.prefs.language) : 'typescript';
+        if (seq !== loadSeq.current) return;
         setState({
           lang,
           code: res.work.find((w) => w.language === lang)?.code ?? null,
@@ -71,13 +76,24 @@ export default function CodingApp({
     [q, socket, userId],
   );
   useEffect(() => {
-    void load();
+    void load(picked);
+    if (picked)
+      void socket
+        .request('prefsSet', { language: picked })
+        .catch((err: unknown) => {
+          console.error('[coding] could not save language', err);
+        });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- first load only
   }, [load]);
 
   if (!state)
     return (
       <CodingPreview
         q={q}
+        lang={picked ?? 'typescript'}
+        onLang={(l) => {
+          void load(l);
+        }}
         status={
           loadError ? (
             <>

@@ -107,3 +107,11 @@ export function trackErrors(page: Page): string[] {
   });
   return errors;
 }
+
+/**
+ * Wait until React has hydrated the server-rendered page. In production a
+ * click before this lands on static HTML and does nothing.
+ */
+export async function waitHydrated(page: Page): Promise<void> {
+  await page.waitForSelector('html[data-hydrated="1"]', { state: 'attached' });
+}

@@ -1,5 +1,9 @@
 import { useEffect, useState, type ComponentType } from 'react';
-import type { CodingQuestion, DesignQuestion } from '../shared/questions';
+import type {
+  CodingQuestion,
+  DesignQuestion,
+  Language,
+} from '../shared/questions';
 
 // The editor and whiteboard are big (CodeMirror, Excalidraw, language
 // services). The server renders question pages without them, so the pages
@@ -8,6 +12,8 @@ import type { CodingQuestion, DesignQuestion } from '../shared/questions';
 
 export interface CodingWorkspaceProps {
   q: CodingQuestion;
+  /** A language picked on the preview, overriding the saved preference. */
+  lang?: Language;
 }
 export interface DesignWorkspaceProps {
   q: DesignQuestion;

@@ -19,10 +19,19 @@ export default function CodingPage({ id }: { id: string }): React.ReactElement {
   const q = findCoding(id);
   const signedIn = useSignedIn();
   const Workspace = useWorkspace('coding', signedIn && Boolean(q));
+  // A language picked before the editor arrives (the session resolves after
+  // the server-rendered page hydrates) carries over into the editor.
+  const [picked, setPicked] = useState<Language | null>(null);
   if (!q) return <NotFound what={`coding question “${id}”`} />;
-  if (signedIn && Workspace) return <Workspace q={q} />;
+  if (signedIn && Workspace)
+    return <Workspace q={q} {...(picked ? { lang: picked } : {})} />;
   return (
-    <CodingPreview q={q} status={signedIn ? 'Loading the editor…' : null} />
+    <CodingPreview
+      q={q}
+      status={signedIn ? 'Loading the editor…' : null}
+      lang={picked ?? 'typescript'}
+      onLang={setPicked}
+    />
   );
 }
 
@@ -30,12 +39,16 @@ export default function CodingPage({ id }: { id: string }): React.ReactElement {
 export function CodingPreview({
   q,
   status,
+  lang = 'typescript',
+  onLang,
 }: {
   q: CodingQuestion;
   /** Shown in place of the editor; null = the sign-in prompt. */
   status: React.ReactNode;
+  lang?: Language;
+  onLang?: (l: Language) => void;
 }): React.ReactElement {
-  const [lang, setLang] = useState<Language>('typescript');
+  const setLang = (l: Language) => onLang?.(l);
   const view = questionIn(q, lang);
   return (
     <div className="workspace">
