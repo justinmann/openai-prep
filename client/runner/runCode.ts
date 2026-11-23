@@ -10,6 +10,8 @@ import type { WorkerIn, WorkerOut } from './worker';
 /** A test may run synchronously this long before we assume an infinite loop. */
 const SYNC_HANG_MS = 5000;
 const MAX_LOG_LINES = 500;
+/** Fetching imported packages from the CDN may take this long. */
+const LOAD_MS = 30_000;
 
 export interface RunHandle {
   cancel: () => void;
@@ -19,6 +21,8 @@ export interface RunUpdate {
   results: (TestResult | null)[];
   logs: LogLine[];
   running: number | null;
+  /** Packages being fetched before the tests start. */
+  loading: string[] | null;
   done: boolean;
   compileError: string | null;
 }
@@ -32,6 +36,7 @@ export function runCode(
     results: tests.map(() => null),
     logs: [],
     running: null,
+    loading: null,
     done: false,
     compileError: null,
   };
@@ -56,26 +61,29 @@ export function runCode(
     if (reason !== undefined) {
       state.results = state.results.map((r, index) => {
         if (r) return r;
+        if (state.loading) return { index, status: 'fail', message: reason, ms: 0 };
         if (index === state.running) return { index, status: 'timeout', message: reason, ms: SYNC_HANG_MS };
         return { index, status: 'skipped', message: 'Not run', ms: 0 };
       });
     }
     state.running = null;
+    state.loading = null;
     state.done = true;
     emit();
   };
 
-  const arm = () => {
+  const arm = (ms = SYNC_HANG_MS, reason = `No progress for ${SYNC_HANG_MS / 1000} s. Infinite loop? The run was stopped.`) => {
     clearTimeout(watchdog);
-    watchdog = setTimeout(
-      () => { finish(`No progress for ${SYNC_HANG_MS / 1000} s. Infinite loop? The run was stopped.`); },
-      SYNC_HANG_MS,
-    );
+    watchdog = setTimeout(() => { finish(reason); }, ms);
   };
 
   worker.onmessage = (e: MessageEvent<WorkerOut>) => {
     const m = e.data;
-    if (m.type === 'start') {
+    if (m.type === 'loading') {
+      state.loading = m.specs;
+      arm(LOAD_MS, `Loading ${m.specs.join(', ')} took over ${LOAD_MS / 1000} s. Check the package names or your network.`);
+    } else if (m.type === 'start') {
+      state.loading = null;
       state.running = m.index;
       arm();
     } else if (m.type === 'result') {

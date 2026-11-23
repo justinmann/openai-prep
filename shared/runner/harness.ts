@@ -138,6 +138,43 @@ export interface RunCallbacks {
   onResult: (result: TestResult) => void;
   /** Called before each test so the host can detect a synchronous hang. */
   onStart?: (index: number) => void;
+  /** Called when the run starts fetching the packages the code imports. */
+  onLoading?: (specs: string[]) => void;
+}
+
+/** Loads one imported package and returns its module namespace. */
+export type ModuleLoader = (spec: string) => Promise<Record<string, unknown>>;
+
+/**
+ * Specifiers the transpiled code imports. Sucrase turns every `import` into a
+ * `require('spec')` call, so this finds both imports and hand-written requires.
+ */
+export function findImports(js: string): string[] {
+  const out = new Set<string>();
+  for (const m of js.matchAll(/\brequire\((['"])([^'"\n]+)\1\)/g)) out.add(m[2]!);
+  return [...out];
+}
+
+/**
+ * Where a specifier is fetched from: bare npm specifiers (`lodash`,
+ * `lodash/chunk`, `@scope/pkg@1.2.3`) go to esm.sh; full https URLs are used
+ * as-is. There are no local files to import.
+ */
+export function moduleUrl(spec: string): string {
+  if (spec.startsWith('https://')) return spec;
+  if (spec.startsWith('.') || spec.startsWith('/'))
+    throw new Error(`Cannot import "${spec}": there are no local files. Import npm packages by name.`);
+  if (spec.startsWith('node:'))
+    throw new Error(`Cannot import "${spec}": Node built-ins do not exist in the browser.`);
+  return `https://esm.sh/${spec}`;
+}
+
+/**
+ * Makes an ES module namespace look like a transpiled ES module to sucrase's
+ * interop helpers, so default, named and `* as` imports all resolve.
+ */
+function asCommonJs(ns: Record<string, unknown>): Record<string, unknown> {
+  return { ...ns, __esModule: true };
 }
 
 /**
@@ -150,6 +187,7 @@ export async function runAll(
   tests: CodingTest[],
   cb: RunCallbacks,
   asyncTimeoutMs = 4000,
+  loadModule?: ModuleLoader,
 ): Promise<void> {
   const consoleProxy = {
     log: (...a: unknown[]) => { cb.onLog({ level: 'log', text: a.map(show).join(' ') }); },
@@ -157,18 +195,50 @@ export async function runAll(
     warn: (...a: unknown[]) => { cb.onLog({ level: 'warn', text: a.map(show).join(' ') }); },
     error: (...a: unknown[]) => { cb.onLog({ level: 'error', text: a.map(show).join(' ') }); },
   };
+  const failAll = (message: string) => {
+    tests.forEach((_, index) => {
+      cb.onResult({ index, status: 'fail', message, ms: 0 });
+    });
+  };
+
+  const modules = new Map<string, Record<string, unknown>>();
+  const specs = findImports(js);
+  if (specs.length) {
+    if (!loadModule) {
+      failAll('Imports are not available here.');
+      return;
+    }
+    cb.onLoading?.(specs);
+    try {
+      await Promise.all(
+        specs.map(async (spec) => {
+          try {
+            modules.set(spec, asCommonJs(await loadModule(spec)));
+          } catch (err) {
+            throw new Error(`Could not import "${spec}": ${err instanceof Error ? err.message : String(err)}`);
+          }
+        }),
+      );
+    } catch (err) {
+      failAll(err instanceof Error ? err.message : String(err));
+      return;
+    }
+  }
+  const requireModule = (spec: string) => {
+    const mod = modules.get(spec);
+    if (!mod) throw new Error(`Cannot import "${spec}" dynamically; use a static import at the top of your code.`);
+    return mod;
+  };
+
   let fns: (() => Promise<void>)[];
   try {
     // eslint-disable-next-line @typescript-eslint/no-implied-eval -- running the candidate's code is the point
     const factory = new Function('__h', 'console', 'exports', 'require', buildProgram(js, tests)) as (
       ...args: unknown[]
     ) => (() => Promise<void>)[];
-    fns = factory(helpers, consoleProxy, {}, () => {
-      throw new Error('imports are not available in the sandbox');
-    });
+    fns = factory(helpers, consoleProxy, {}, requireModule);
   } catch (err) {
-    const message = `Your code failed before any test ran: ${describeError(err)}`;
-    tests.forEach((_, index) => { cb.onResult({ index, status: 'fail', message, ms: 0 }); });
+    failAll(`Your code failed before any test ran: ${describeError(err)}`);
     return;
   }
   for (let index = 0; index < fns.length; index++) {

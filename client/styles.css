@@ -175,3 +175,5 @@ a { color: #7fd3b8; }
   .topbar-title { order: 3; flex-basis: 100%; }
 }
 .pill-none { background: var(--panel-2); color: var(--muted); }
+.loading { margin: 6px 14px 8px; color: var(--partial); font-size: 13px; }
+.empty code { font-family: var(--mono); font-size: 12px; background: var(--panel-2); padding: 1px 5px; border-radius: 4px; }

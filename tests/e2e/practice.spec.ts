@@ -69,6 +69,33 @@ test('an infinite loop is stopped, not frozen', async ({ page }) => {
   await expect(page.locator('[data-id="run-tests"]')).toBeVisible();
 });
 
+test('npm packages can be imported from esm.sh', async ({ page }) => {
+  const code = [
+    "import { chunk } from 'lodash-es';",
+    "import * as _ from 'lodash-es';",
+    'function serialize(d: Record<string, string>): string {',
+    "  console.log('chunks', JSON.stringify(chunk([1, 2, 3], 2)), typeof _.isEqual);",
+    "  return '';",
+    '}',
+    'function deserialize(s: string): Record<string, string> { return {}; }',
+  ].join('\n');
+  await seedDraft(page, 'oaiprep:code:kv-serialize', code);
+  const errors = trackErrors(page);
+  await page.goto('/coding/kv-serialize');
+  await page.locator('[data-id="run-tests"]').click();
+  await expect(page.locator('.t-pass').first()).toBeVisible({ timeout: 30_000 });
+  await page.locator('[data-id="tab-console"]').click();
+  await expect(page.locator('.console')).toContainText('chunks [[1,2],[3]] function');
+  expect(errors).toEqual([]);
+});
+
+test('a missing package is reported by name', async ({ page }) => {
+  await seedDraft(page, 'oaiprep:code:kv-serialize', "import x from 'this-package-does-not-exist-zz9';\nconsole.log(x);");
+  await page.goto('/coding/kv-serialize');
+  await page.locator('[data-id="run-tests"]').click();
+  await expect(page.locator('.t-fail').first()).toContainText('Could not import "this-package-does-not-exist-zz9"', { timeout: 30_000 });
+});
+
 test('a syntax error is reported', async ({ page }) => {
   await seedDraft(page, 'oaiprep:code:kv-serialize', 'function serialize( {');
   await page.goto('/coding/kv-serialize');

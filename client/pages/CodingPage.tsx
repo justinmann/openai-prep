@@ -220,7 +220,9 @@ function CodingWorkspace({ q }: { q: CodingQuestion }): React.ReactElement {
               ) : !run ? (
                 <div className="empty">
                   Press <span className="kbd">⌘↵</span> or <strong>Run tests</strong> to check your solution. Your
-                  code runs in a sandboxed worker in this browser; types are stripped, not checked.
+                  code runs in a sandboxed worker in this browser; types are stripped, not checked. You can{' '}
+                  <code>import</code> npm packages by name (loaded from esm.sh), e.g.{' '}
+                  <code>import {'{'} chunk {'}'} from &apos;lodash-es&apos;</code>.
                 </div>
               ) : run.compileError ? (
                 <div className="compile-error">
@@ -229,6 +231,7 @@ function CodingWorkspace({ q }: { q: CodingQuestion }): React.ReactElement {
                 </div>
               ) : (
                 <>
+                  {run.loading && <div className="loading">Loading {run.loading.join(', ')} from esm.sh…</div>}
                   {run.done && totalPassed === tests.length && (
                     <div className="allpass">All {tests.length} tests pass. Talk through complexity and edge cases next.</div>
                   )}
