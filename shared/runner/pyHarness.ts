@@ -25,6 +25,8 @@ def assert_raises(fn, label=None):
     raise AssertionError((label or 'call') + ' should have raised')
 
 def _describe(e):
+    if isinstance(e, SyntaxError):
+        return 'SyntaxError: ' + str(e.msg) + ' (line ' + str(e.lineno) + ')'
     frames = [f for f in traceback.extract_tb(e.__traceback__) if f.filename == 'solution.py']
     where = ' (solution.py line ' + str(frames[-1].lineno) + ')' if frames else ''
     if isinstance(e, AssertionError) and str(e):
@@ -56,6 +58,23 @@ async def _run_tests(code, tests, on_start, on_result, timeout_s):
         except BaseException as e:
             status, message = 'fail', _describe(e)
         on_result(i, status, message, int((time.perf_counter() - t0) * 1000))
+
+async def _run_main(code, on_start, on_result, timeout_s):
+    import ast, inspect
+    on_start(0)
+    g = {'__name__': '__main__', 'asyncio': asyncio}
+    t0 = time.perf_counter()
+    status, message = 'pass', None
+    try:
+        compiled = compile(code, 'solution.py', 'exec', flags=ast.PyCF_ALLOW_TOP_LEVEL_AWAIT)
+        r = eval(compiled, g)
+        if inspect.iscoroutine(r):
+            await asyncio.wait_for(r, timeout_s)
+    except asyncio.TimeoutError:
+        status, message = 'timeout', 'Did not finish within ' + str(timeout_s) + ' s'
+    except BaseException as e:
+        status, message = 'fail', _describe(e)
+    on_result(0, status, message, int((time.perf_counter() - t0) * 1000))
 `;
 
 /** The slice of the Pyodide API the runner needs (browser and Node). */
@@ -108,6 +127,8 @@ export async function runPythonTests(
   tests: CodingTest[],
   cb: PyCallbacks,
   timeoutS = 4,
+  /** Run the file once as a program (top-level await allowed). */
+  main = false,
 ): Promise<{ syntaxError: string | null }> {
   install(py);
   py.setStdout({
@@ -120,8 +141,11 @@ export async function runPythonTests(
       cb.onLog({ level: 'error', text });
     },
   });
-  const syntax = (py.globals.get('_check_syntax') as PyFn)(code);
-  if (typeof syntax === 'string') return { syntaxError: syntax };
+  // Top-level await is legal in "Run code" mode, so skip the plain check there.
+  if (!main) {
+    const syntax = (py.globals.get('_check_syntax') as PyFn)(code);
+    if (typeof syntax === 'string') return { syntaxError: syntax };
+  }
 
   const thirdParty = (py.globals.get('_third_party') as PyFn)(code) as {
     toJs: () => string[];
@@ -134,6 +158,31 @@ export async function runPythonTests(
     await py.loadPackagesFromImports(code);
   }
 
+  const onStart = (i: number) => {
+    cb.onStart(i);
+  };
+  const onResult = (
+    index: number,
+    status: string,
+    message: string | undefined,
+    ms: number,
+  ) => {
+    cb.onResult({
+      index,
+      status: status === 'pass' || status === 'timeout' ? status : 'fail',
+      ...(message ? { message } : {}),
+      ms,
+    });
+  };
+  if (main) {
+    await ((py.globals.get('_run_main') as PyFn)(
+      code,
+      onStart,
+      onResult,
+      timeoutS,
+    ) as Promise<unknown>);
+    return { syntaxError: null };
+  }
   const run = py.globals.get('_run_tests') as PyFn;
   const pyTests = py.toPy(tests.map((t) => [t.name, t.code]));
   await (run(
@@ -159,3 +208,82 @@ export async function runPythonTests(
   ) as Promise<unknown>);
   return { syntaxError: null };
 }
+
+export interface PyCompletion {
+  label: string;
+  /** jedi type: module, class, instance, function, param, path, keyword, property, statement */
+  type: string;
+  detail: string;
+}
+
+export interface PyDiagnostic {
+  /** 1-based */
+  line: number;
+  /** 0-based */
+  col: number;
+  endLine: number;
+  endCol: number;
+  severity: 'error' | 'warning';
+  message: string;
+}
+
+/**
+ * Editor services, run in the language worker. Names the test driver injects
+ * (asyncio, assert_equal, assert_raises) are treated as builtins so code that
+ * runs here is not flagged.
+ */
+export const PY_LANG_SERVICE = String.raw`
+import ast, json
+
+_EXTRA_BUILTINS = {'asyncio', 'assert_equal', 'assert_raises'}
+
+def _complete(code, line, column):
+    import jedi
+    try:
+        items = jedi.Script(code, path='solution.py').complete(line, column)
+    except Exception:
+        return '[]'
+    out = []
+    for c in items[:200]:
+        if c.name.startswith('__') and not c.name.endswith('__'):
+            continue
+        detail = ''
+        try:
+            sigs = c.get_signatures()
+            if sigs:
+                detail = sigs[0].to_string()
+        except Exception:
+            pass
+        out.append({'label': c.name, 'type': c.type, 'detail': detail})
+    return json.dumps(out)
+
+def _lint(code):
+    try:
+        tree = compile(code, 'solution.py', 'exec',
+                       flags=ast.PyCF_ONLY_AST | ast.PyCF_ALLOW_TOP_LEVEL_AWAIT)
+    except SyntaxError as e:
+        line = e.lineno or 1
+        col = max((e.offset or 1) - 1, 0)
+        end_line = e.end_lineno or line
+        end_col = max((e.end_offset or (col + 2)) - 1, col + 1)
+        return json.dumps([{'line': line, 'col': col, 'endLine': end_line,
+                            'endCol': end_col, 'severity': 'error',
+                            'message': 'SyntaxError: ' + str(e.msg)}])
+    try:
+        from pyflakes import checker, messages as m
+    except ImportError:
+        return '[]'
+    errors = (m.UndefinedName, m.UndefinedLocal, m.UndefinedExport,
+              m.ReturnOutsideFunction, m.DuplicateArgument)
+    out = []
+    w = checker.Checker(tree, filename='solution.py', builtins=_EXTRA_BUILTINS)
+    for msg in w.messages:
+        col = getattr(msg, 'col', 0) or 0
+        name = msg.message_args[0] if msg.message_args else None
+        width = len(name) if isinstance(name, str) else 1
+        out.append({'line': msg.lineno, 'col': col, 'endLine': msg.lineno,
+                    'endCol': col + max(width, 1),
+                    'severity': 'error' if isinstance(msg, errors) else 'warning',
+                    'message': msg.message % msg.message_args})
+    return json.dumps(out)
+`;

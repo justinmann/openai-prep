@@ -829,3 +829,26 @@ a {
 .tok-punctuation {
   color: #abb2bf;
 }
+
+/* "Run code" status line above the console output */
+.run-status {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  border-radius: 8px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+.run-status pre {
+  margin: 6px 0 0;
+  white-space: pre-wrap;
+}
+.run-ok {
+  color: var(--pass);
+}
+.run-fail {
+  color: var(--fail);
+  white-space: pre-wrap;
+}

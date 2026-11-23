@@ -2,7 +2,7 @@ import { indentWithTab } from '@codemirror/commands';
 import { javascript } from '@codemirror/lang-javascript';
 import { markdown } from '@codemirror/lang-markdown';
 import { python } from '@codemirror/lang-python';
-import { EditorState } from '@codemirror/state';
+import { Compartment, EditorState } from '@codemirror/state';
 import { oneDark } from '@codemirror/theme-one-dark';
 import {
   EditorView,
@@ -18,9 +18,21 @@ interface Props {
   'language': 'typescript' | 'python' | 'markdown';
   /** Cmd/Ctrl+Enter */
   'onSubmit'?: () => void;
+  /** Shift+Cmd/Ctrl+Enter */
+  'onRunCode'?: () => void;
   'placeholder'?: string;
   'data-id': string;
   'aria-label': string;
+  /** Load autocomplete, error underlines and hover types for the language. */
+  'services'?: boolean;
+}
+
+async function loadServices(language: Props['language']) {
+  if (language === 'typescript')
+    return (await import('../lang/typescript')).typescriptServices();
+  if (language === 'python')
+    return (await import('../lang/python')).pythonServices();
+  return [];
 }
 
 // CodeMirror 6, mounted once. External value changes (reset, show solution)
@@ -33,12 +45,20 @@ export function CodeEditor(props: Props): React.ReactElement {
 
   useEffect(() => {
     if (!host.current) return;
+    const services = new Compartment();
     const v = new EditorView({
       parent: host.current,
       state: EditorState.create({
         doc: props.value,
         extensions: [
           keymap.of([
+            {
+              key: 'Shift-Mod-Enter',
+              run: () => {
+                latest.current.onRunCode?.();
+                return true;
+              },
+            },
             {
               key: 'Mod-Enter',
               run: () => {
@@ -61,6 +81,7 @@ export function CodeEditor(props: Props): React.ReactElement {
             '&.cm-focused': { outline: 'none' },
           }),
           ...(props.placeholder ? [cmPlaceholder(props.placeholder)] : []),
+          services.of([]),
           EditorView.updateListener.of((u) => {
             if (u.docChanged) latest.current.onChange(u.state.doc.toString());
           }),
@@ -71,7 +92,18 @@ export function CodeEditor(props: Props): React.ReactElement {
       }),
     });
     view.current = v;
+    let alive = true;
+    if (props.services)
+      loadServices(props.language)
+        .then((ext) => {
+          if (alive) v.dispatch({ effects: services.reconfigure(ext) });
+        })
+        .catch((err: unknown) => {
+          // The editor still works without them; just no autocomplete/lint.
+          console.warn('[editor] language services failed to load', err);
+        });
     return () => {
+      alive = false;
       v.destroy();
       view.current = null;
     };

@@ -133,6 +133,14 @@ function describeError(err: unknown): string {
   return `Thrown: ${format(err)}`;
 }
 
+/**
+ * "Run code" mode: the whole file is the body of one async function, so
+ * top-level `await` works. No helpers are injected, so nothing collides.
+ */
+export function buildMain(js: string): string {
+  return `return [async () => {\n${js}\n}];`;
+}
+
 export interface RunCallbacks {
   onLog: (line: LogLine) => void;
   onResult: (result: TestResult) => void;
@@ -193,7 +201,10 @@ export async function runAll(
   cb: RunCallbacks,
   asyncTimeoutMs = 4000,
   loadModule?: ModuleLoader,
+  /** Run the file once as a program instead of running `tests`. */
+  main = false,
 ): Promise<void> {
+  if (main) tests = [{ name: 'Your code', code: '' }];
   const consoleProxy = {
     log: (...a: unknown[]) => {
       cb.onLog({ level: 'log', text: a.map(show).join(' ') });
@@ -256,7 +267,7 @@ export async function runAll(
       'console',
       'exports',
       'require',
-      buildProgram(js, tests),
+      main ? buildMain(js) : buildProgram(js, tests),
     ) as (...args: unknown[]) => (() => Promise<void>)[];
     fns = factory(helpers, consoleProxy, {}, requireModule);
   } catch (err) {
@@ -283,7 +294,7 @@ export async function runAll(
         status: err instanceof TimeoutError ? 'timeout' : 'fail',
         message:
           err instanceof TimeoutError
-            ? `Timed out after ${asyncTimeoutMs} ms (a promise never settled?)`
+            ? `Timed out after ${asyncTimeoutMs / 1000} s (a promise never settled?)`
             : describeError(err),
         ms: performance.now() - t0,
       });

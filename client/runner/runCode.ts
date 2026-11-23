@@ -11,6 +11,8 @@ import type { WorkerIn, WorkerOut } from './worker';
 /** A test may run synchronously this long before we assume an infinite loop. */
 const SYNC_HANG_MS = 5000;
 const MAX_LOG_LINES = 500;
+/** "Run code" may await up to 10 s, so it gets a little longer. */
+const MAIN_HANG_MS = 11_000;
 /** Fetching imported packages (or the Python runtime) may take this long. */
 const LOAD_MS = 60_000;
 
@@ -45,12 +47,20 @@ export interface RunUpdate {
   compileError: string | null;
 }
 
+export type RunMode = 'tests' | 'main';
+
+/** The single pseudo-test a "Run code" run reports its outcome on. */
+export const MAIN_RUN: CodingTest[] = [{ name: 'Your code', code: '' }];
+
 export function runCode(
   language: Language,
   source: string,
   tests: CodingTest[],
   onUpdate: (u: RunUpdate) => void,
+  mode: RunMode = 'tests',
 ): RunHandle {
+  const main = mode === 'main';
+  if (main) tests = MAIN_RUN;
   const state: RunUpdate = {
     results: tests.map(() => null),
     logs: [],
@@ -137,7 +147,12 @@ export function runCode(
     } else if (m.type === 'start') {
       state.loading = null;
       state.running = m.index;
-      arm();
+      if (main)
+        arm(
+          MAIN_HANG_MS,
+          `Still running after ${MAIN_HANG_MS / 1000} s. Infinite loop? The run was stopped.`,
+        );
+      else arm();
     } else if (m.type === 'result') {
       state.results[m.result.index] = m.result;
     } else if (m.type === 'compileError') {
@@ -160,10 +175,10 @@ export function runCode(
 
   arm();
   if (language === 'python') {
-    const msg: PyWorkerIn = { type: 'run', code: source, tests };
+    const msg: PyWorkerIn = { type: 'run', code: source, tests, main };
     worker.postMessage(msg);
   } else {
-    const msg: WorkerIn = { js, tests };
+    const msg: WorkerIn = { js, tests, main };
     worker.postMessage(msg);
   }
   emit();

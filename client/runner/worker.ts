@@ -8,6 +8,8 @@ import { moduleUrl, runAll } from '../../shared/runner/harness';
 export interface WorkerIn {
   js: string;
   tests: CodingTest[];
+  /** "Run code": execute the file once, no tests. */
+  main: boolean;
 }
 
 export type WorkerOut =
@@ -17,6 +19,9 @@ export type WorkerOut =
   | { type: 'log'; line: import('../../shared/runner/harness').LogLine }
   | { type: 'compileError'; message: string }
   | { type: 'done' };
+
+/** "Run code" may await for this long. */
+export const MAIN_TIMEOUT_MS = 10_000;
 
 const post = (m: WorkerOut) => {
   self.postMessage(m);
@@ -46,8 +51,9 @@ self.onmessage = (e: MessageEvent<WorkerIn>) => {
         post({ type: 'log', line });
       },
     },
-    undefined,
+    e.data.main ? MAIN_TIMEOUT_MS : undefined,
     loadModule,
+    e.data.main,
   ).then(() => {
     post({ type: 'done' });
   });

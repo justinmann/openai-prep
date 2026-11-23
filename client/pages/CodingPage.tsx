@@ -17,6 +17,7 @@ import {
   runCode,
   warmPython,
   type RunHandle,
+  type RunMode,
   type RunUpdate,
 } from '../runner/runCode';
 import { codeDraft, codingProgress, langKey, prefs } from '../storage';
@@ -82,6 +83,71 @@ function LanguagePicker({
   );
 }
 
+function ConsolePane({
+  run,
+  main,
+  lang,
+}: {
+  run: RunUpdate | null;
+  main: boolean;
+  lang: Language;
+}): React.ReactElement {
+  const outcome = main ? run?.results[0] : undefined;
+  let status: React.ReactNode = null;
+  if (main && run) {
+    if (run.compileError)
+      status = (
+        <div className="run-status run-fail">
+          <strong>Could not run</strong>
+          <pre>{run.compileError}</pre>
+        </div>
+      );
+    else if (run.loading)
+      status = (
+        <div className="run-status">Loading {run.loading.join(', ')}…</div>
+      );
+    else if (!run.done || !outcome)
+      status = <div className="run-status">Running…</div>;
+    else if (outcome.status === 'pass')
+      status = (
+        <div className="run-status run-ok" data-id="run-ok">
+          Finished in {Math.round(outcome.ms)} ms
+        </div>
+      );
+    else
+      status = (
+        <div className="run-status run-fail" data-id="run-error">
+          {outcome.message ?? 'Failed'}
+        </div>
+      );
+  }
+  if (!run?.logs.length && !status)
+    return (
+      <div className="empty">
+        {lang === 'python' ? 'print()' : 'console.log'} output from your code
+        appears here. <strong>Run code</strong> (
+        <span className="kbd">⇧⌘↵</span>) runs your file as a program, without
+        the tests.
+      </div>
+    );
+  return (
+    <div>
+      {status}
+      {run?.logs.length ? (
+        <pre className="console">
+          {run.logs.map((l, i) => (
+            <div key={i} className={`log log-${l.level}`}>
+              {l.text}
+            </div>
+          ))}
+        </pre>
+      ) : main && run?.done ? (
+        <div className="empty">No output.</div>
+      ) : null}
+    </div>
+  );
+}
+
 function CodingWorkspace({
   q,
   lang,
@@ -100,6 +166,9 @@ function CodingWorkspace({
   );
   const [code, setCode] = useState(() => codeDraft.get(key) ?? view.starter);
   const [run, setRun] = useState<RunUpdate | null>(null);
+  // "Run code" (no tests) is tracked apart so it never wipes test results.
+  const [mainRun, setMainRun] = useState<RunUpdate | null>(null);
+  const [lastMode, setLastMode] = useState<RunMode>('tests');
   const [tab, setTab] = useState<'results' | 'console'>('results');
   const [left, setLeft] = useState<'prompt' | 'solution'>('prompt');
   const [confirmReset, setConfirmReset] = useState(false);
@@ -135,11 +204,21 @@ function CodingWorkspace({
     if (lang === 'python') warmPython();
   }, [lang]);
 
-  const running = run !== null && !run.done;
+  const running =
+    (run !== null && !run.done) || (mainRun !== null && !mainRun.done);
+  const consoleRun = lastMode === 'main' ? mainRun : run;
+
+  const runMain = useCallback(() => {
+    handle.current?.cancel();
+    setTab('console');
+    setLastMode('main');
+    handle.current = runCode(lang, codeRef.current, [], setMainRun, 'main');
+  }, [lang]);
 
   const start = useCallback(() => {
     handle.current?.cancel();
     setTab('results');
+    setLastMode('tests');
     handle.current = runCode(lang, codeRef.current, tests, (u) => {
       setRun(u);
       if (u.done && !u.compileError) {
@@ -183,14 +262,25 @@ function CodingWorkspace({
             Stop
           </Button>
         ) : (
-          <Button
-            variant="primary"
-            size="sm"
-            data-id="run-tests"
-            onClick={start}
-          >
-            Run tests <span className="kbd">⌘↵</span>
-          </Button>
+          <>
+            <Button
+              variant="secondary"
+              size="sm"
+              data-id="run-code"
+              aria-label="Run code without tests"
+              onClick={runMain}
+            >
+              Run code <span className="kbd">⇧⌘↵</span>
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              data-id="run-tests"
+              onClick={start}
+            >
+              Run tests <span className="kbd">⌘↵</span>
+            </Button>
+          </>
         )}
       </TopBar>
 
@@ -284,6 +374,8 @@ function CodingWorkspace({
               onChange={setCode}
               language={lang}
               onSubmit={start}
+              onRunCode={runMain}
+              services
               data-id="code-editor"
               aria-label="Solution code editor"
             />
@@ -313,7 +405,10 @@ function CodingWorkspace({
                     setTab('console');
                   }}
                 >
-                  Console{run?.logs.length ? ` (${run.logs.length})` : ''}
+                  Console
+                  {consoleRun?.logs.length
+                    ? ` (${consoleRun.logs.length})`
+                    : ''}
                 </Button>
               </div>
               <div className="results-tools">
@@ -360,20 +455,11 @@ function CodingWorkspace({
 
             <div className="results-body" data-id="results-body">
               {tab === 'console' ? (
-                run?.logs.length ? (
-                  <pre className="console">
-                    {run.logs.map((l, i) => (
-                      <div key={i} className={`log log-${l.level}`}>
-                        {l.text}
-                      </div>
-                    ))}
-                  </pre>
-                ) : (
-                  <div className="empty">
-                    {lang === 'python' ? 'print()' : 'console.log'} output from
-                    your code appears here.
-                  </div>
-                )
+                <ConsolePane
+                  run={consoleRun}
+                  main={lastMode === 'main'}
+                  lang={lang}
+                />
               ) : !run ? (
                 <div className="empty">
                   Press <span className="kbd">⌘↵</span> or{' '}

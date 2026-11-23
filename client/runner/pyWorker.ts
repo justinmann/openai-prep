@@ -11,7 +11,8 @@ import type { WorkerOut } from './worker';
 // The page terminates this worker on a hang, which also discards Pyodide.
 
 export type PyWorkerIn =
-  { type: 'warm' } | { type: 'run'; code: string; tests: CodingTest[] };
+  | { type: 'warm' }
+  | { type: 'run'; code: string; tests: CodingTest[]; main: boolean };
 
 const post = (m: WorkerOut) => {
   self.postMessage(m);
@@ -48,20 +49,27 @@ self.onmessage = (e: MessageEvent<PyWorkerIn>) => {
     try {
       if (!booted) post({ type: 'loading', specs: ['Python runtime'] });
       const py = await boot();
-      const r = await runPythonTests(py, m.code, m.tests, {
-        onLoading: (specs) => {
-          post({ type: 'loading', specs });
+      const r = await runPythonTests(
+        py,
+        m.code,
+        m.tests,
+        {
+          onLoading: (specs) => {
+            post({ type: 'loading', specs });
+          },
+          onStart: (index) => {
+            post({ type: 'start', index });
+          },
+          onResult: (result) => {
+            post({ type: 'result', result });
+          },
+          onLog: (line) => {
+            post({ type: 'log', line });
+          },
         },
-        onStart: (index) => {
-          post({ type: 'start', index });
-        },
-        onResult: (result) => {
-          post({ type: 'result', result });
-        },
-        onLog: (line) => {
-          post({ type: 'log', line });
-        },
-      });
+        m.main ? 10 : 4,
+        m.main,
+      );
       if (r.syntaxError) post({ type: 'compileError', message: r.syntaxError });
     } catch (err) {
       ready = null;
