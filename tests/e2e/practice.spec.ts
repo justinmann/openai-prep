@@ -1,6 +1,12 @@
 import { expect, test } from '@playwright/test';
 import { codingQuestions } from '../../shared/questions/coding';
-import { seedCode, seedDesign, signIn, trackErrors } from './helpers';
+import {
+  seedCode,
+  seedDesign,
+  signIn,
+  trackErrors,
+  waitHydrated,
+} from './helpers';
 
 test('the question list shows every question, with progress when signed in', async ({
   page,
@@ -168,6 +174,7 @@ test.describe('python', () => {
     await signIn(page);
     const errors = trackErrors(page);
     await page.goto('/coding/kv-serialize');
+    await waitHydrated(page);
     await page.locator('[data-id="lang-python"]').click();
     await expect(page.locator('.cm-content')).toContainText('def serialize');
     await page.reload();

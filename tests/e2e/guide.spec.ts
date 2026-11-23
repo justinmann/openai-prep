@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { signIn } from './helpers';
+import { signIn, waitHydrated } from './helpers';
 
 function trackErrors(page: Page): string[] {
   const errors: string[] = [];
@@ -71,6 +71,7 @@ test('the guide opens in the current language and closes on Escape', async ({
 }) => {
   await signIn(page);
   await page.goto('/coding/kv-serialize');
+  await waitHydrated(page);
   await page.locator('[data-id="lang-python"]').click();
   await page.locator('[data-id="open-guide"]').click();
   const guide = page.locator('[data-id="language-guide"]');

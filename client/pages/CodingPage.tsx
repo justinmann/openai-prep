@@ -15,13 +15,24 @@ import { useWorkspace } from '../workspaces';
 // (CodingWorkspace, loaded in the browser only); everyone else gets a sign-in
 // prompt where the editor would be.
 
+/** Survives the remount when the session resolves; per tab, per question. */
+let pendingPick: { id: string; lang: Language } | null = null;
+
 export default function CodingPage({ id }: { id: string }): React.ReactElement {
   const q = findCoding(id);
   const signedIn = useSignedIn();
   const Workspace = useWorkspace('coding', signedIn && Boolean(q));
-  // A language picked before the editor arrives (the session resolves after
-  // the server-rendered page hydrates) carries over into the editor.
-  const [picked, setPicked] = useState<Language | null>(null);
+  // A language picked before the editor arrives carries over into it. The
+  // session resolves after the server-rendered page hydrates, and signing in
+  // swaps in a new app tree (remounting this page), so the pick lives outside
+  // React state too.
+  const [picked, setPickedState] = useState<Language | null>(() =>
+    pendingPick?.id === id ? pendingPick.lang : null,
+  );
+  const setPicked = (l: Language) => {
+    pendingPick = { id, lang: l };
+    setPickedState(l);
+  };
   if (!q) return <NotFound what={`coding question “${id}”`} />;
   if (signedIn && Workspace)
     return <Workspace q={q} {...(picked ? { lang: picked } : {})} />;
