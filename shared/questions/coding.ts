@@ -1,3 +1,4 @@
+import { moreCoding } from './more';
 import type { CodingQuestion } from './types';
 
 // Test bodies and solutions are String.raw so escapes like "\n" reach the
@@ -11,8 +12,11 @@ const kvSerialize: CodingQuestion = {
   tags: ['strings', 'encoding'],
   summary:
     'Encode a string-to-string map into one string and back, for any characters.',
-  sourceUrl:
-    'https://www.hellointerview.com/community/questions/kv-serialize-deserialize/cm6xw6unw00003b6qz67bpfaj',
+  companies: ['openai', 'google', 'amazon'],
+  sources: [
+    'https://www.interviewcoder.co/blog/openai-software-engineer-interview',
+    'https://leetcode.com/problems/encode-and-decode-strings/',
+  ],
   prompt: `You are building persistence for an in-memory key-value store whose keys and values are both strings.
 
 Write \`serialize(data)\`, which turns a \`Record<string, string>\` into a single string, and \`deserialize(s)\`, which turns that string back into the original map.
@@ -205,6 +209,12 @@ const versionedKv: CodingQuestion = {
   tags: ['binary search', 'design'],
   summary:
     'A key-value store that can answer "what was this value at time t?".',
+  companies: ['openai', 'meta', 'google', 'amazon'],
+  sources: [
+    'https://sx-studio.com/openai-sde-interview/',
+    'https://www.jointaro.com/interviews/meta/time-based-key-value-store/',
+    'https://leetcode.com/problems/time-based-key-value-store/',
+  ],
   prompt: `Implement a key-value store that keeps every version of a value.
 
 \`\`\`ts
@@ -379,6 +389,12 @@ const resumableIterator: CodingQuestion = {
   tags: ['iterators', 'state', 'async'],
   summary:
     'Iterators whose position can be saved and restored, from lists up to paged async sources.',
+  companies: ['openai', 'airbnb', 'google'],
+  sources: [
+    'https://www.coditioning.com/blog/14/open-ai-swe-coding-interviewquestions-actual-questions-real-candidates',
+    'https://returnzero.dev/companies/openai',
+    'https://prachub.com/companies/airbnb/categories/coding-and-algorithms',
+  ],
   prompt: `Long-running jobs get preempted. Build iterators that can checkpoint their position and resume from it.
 
 Every iterator exposes \`getState()\`, returning a **JSON-serializable** snapshot, and \`setState(state)\`, which restores a snapshot taken from an iterator over the same data. Tests round-trip state through \`JSON.stringify\` / \`JSON.parse\`.`,
@@ -611,6 +627,11 @@ const inMemoryDb: CodingQuestion = {
   tags: ['design', 'sorting'],
   summary:
     'Tables, inserts and a small query API with filters, multi-column ordering and projection.',
+  companies: ['openai', 'anthropic'],
+  sources: [
+    'https://prachub.com/interview-questions/implement-in-memory-db-querying',
+    'https://prachub.com/interview-experiences/anthropic-software-engineer-interview-experience-a-community-compiled-guide-to-the-oa-technical-and-values-rounds',
+  ],
   prompt: `Build a tiny in-memory database.
 
 \`\`\`ts
@@ -829,6 +850,11 @@ const spreadsheet: CodingQuestion = {
   tags: ['graphs', 'parsing'],
   summary:
     'Cells that hold numbers or formulas referencing other cells, with cycle detection and ranges.',
+  companies: ['openai', 'microsoft'],
+  sources: [
+    'https://www.coditioning.com/blog/14/open-ai-swe-coding-interviewquestions-actual-questions-real-candidates',
+    'https://supacv.com/blog/interview-playbook/openai',
+  ],
   prompt: `Implement a spreadsheet.
 
 \`\`\`ts
@@ -1048,6 +1074,11 @@ const gpuCredits: CodingQuestion = {
   tags: ['simulation', 'heaps', 'ordering'],
   summary:
     'Grant expiring credits, charge usage soonest-expiring first, answer balances; events arrive out of order.',
+  companies: ['openai'],
+  sources: [
+    'https://www.linkjob.ai/interview-questions/openai-coding-interview/',
+    'https://prachub.com/interview-questions/design-gpu-credit-allocator',
+  ],
   prompt: `Customers get GPU credits that expire. Implement:
 
 \`\`\`ts
@@ -1207,6 +1238,12 @@ const cdSymlinks: CodingQuestion = {
   tags: ['strings', 'stacks', 'graphs'],
   summary:
     'Resolve a cd target against a working directory, then follow symlinks and detect loops.',
+  companies: ['openai', 'uber', 'airbnb'],
+  sources: [
+    'https://returnzero.dev/companies/openai',
+    'https://leetcode.com/discuss/post/7300207/uber-software-engineer-ii-se-2-bangalore-wyl8/',
+    'https://www.1point3acres.com/interview/guides/airbnb-interview-trend-2026q4',
+  ],
   prompt: `Implement the path resolution behind a shell's \`cd\`:
 
 \`\`\`ts
@@ -1317,6 +1354,11 @@ const webCrawler: CodingQuestion = {
   tags: ['async', 'concurrency', 'bfs'],
   summary:
     'Crawl one host with bounded concurrency, de-duplicate URLs and survive failures.',
+  companies: ['anthropic', 'openai', 'google'],
+  sources: [
+    'https://www.interviewquery.com/guides/anthropic-software-engineer',
+    'https://www.aced.io/guides/anthropic-software-engineer-interview',
+  ],
   prompt: `Write an async crawler:
 
 \`\`\`ts
@@ -1449,6 +1491,11 @@ const allocator: CodingQuestion = {
   tags: ['design', 'intervals'],
   summary:
     'First-fit malloc/free over a fixed heap, then coalescing and error handling.',
+  companies: ['openai', 'apple', 'microsoft'],
+  sources: [
+    'https://www.fastprep.io/problems/openai-memory-allocator',
+    'https://prachub.com/coding-questions/implement-a-memory-allocator-with-malloc-free',
+  ],
   prompt: `Simulate a heap of \`size\` bytes, addresses \`0 .. size-1\`.
 
 \`\`\`ts
@@ -1579,4 +1626,5 @@ export const codingQuestions: CodingQuestion[] = [
   cdSymlinks,
   webCrawler,
   allocator,
+  ...moreCoding,
 ];

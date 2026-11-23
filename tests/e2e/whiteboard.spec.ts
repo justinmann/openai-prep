@@ -6,9 +6,17 @@ import { api, seedDesign, signIn, trackErrors } from './helpers';
 
 const Q = 'design-webhooks';
 
-test('the design page requires sign-in', async ({ page }) => {
+test('signed out, the design brief is public and the whiteboard needs sign-in', async ({
+  page,
+}) => {
   await page.goto(`/design/${Q}`);
-  await expect(page.locator('.ugly-login-btn')).toBeVisible();
+  await expect(page.locator('h1')).toHaveText(
+    'Design a Webhook Delivery System',
+  );
+  await expect(
+    page.getByRole('heading', { name: 'Functional requirements', exact: true }),
+  ).toBeVisible();
+  await expect(page.locator('[data-id="gate-sign-in"]')).toBeVisible();
   await expect(page.locator('[data-id="design-whiteboard"]')).toHaveCount(0);
   await expect(page.locator('[data-id="grade-design"]')).toHaveCount(0);
 });

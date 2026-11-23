@@ -1,4 +1,12 @@
 import type { PythonVersion } from '../types';
+import { py as bankSystem } from './bank-system';
+import { py as stackTraceEvents } from './stack-trace-events';
+import { py as lruCacheTtl } from './lru-cache-ttl';
+import { py as rateLimiter } from './rate-limiter';
+import { py as invoiceMatching } from './invoice-matching';
+import { py as inMemoryFs } from './in-memory-fs';
+import { py as kClosestDrivers } from './k-closest-drivers';
+import { py as wordLadder } from './word-ladder';
 import { py as allocator } from './memory-allocator';
 import { py as cdSymlinks } from './cd-symlinks';
 import { py as gpuCredits } from './gpu-credits';
@@ -19,4 +27,12 @@ export const pythonVersions: Record<string, PythonVersion> = {
   'cd-symlinks': cdSymlinks,
   'web-crawler': webCrawler,
   'memory-allocator': allocator,
+  'bank-system': bankSystem,
+  'stack-trace-events': stackTraceEvents,
+  'lru-cache-ttl': lruCacheTtl,
+  'rate-limiter': rateLimiter,
+  'invoice-matching': invoiceMatching,
+  'in-memory-fs': inMemoryFs,
+  'k-closest-drivers': kClosestDrivers,
+  'word-ladder': wordLadder,
 };

@@ -51,6 +51,8 @@ export const DesignGradeSchema = z.object({
   level: LevelSchema,
   words: z.number().int(),
   shapes: z.number().int().nullable(),
+  /** The company the answer was graded for; absent = general bar. */
+  company: z.string().nullable().optional(),
   grade: storedGradeSchema,
 });
 export type DesignGrade = InferDocType<typeof DesignGradeSchema>;

@@ -1,27 +1,17 @@
 import { bootstrapApp } from 'ugly-app/client';
 import { requests } from '../shared/api';
-import en from '../shared/lang/en';
-import { stringsDef } from '../shared/strings';
-import { RouterProvider, RouterView } from './router';
+import { allPages } from './allPages';
+import { renderApp, strings } from './appRoot';
+import { prepareInitialPage } from './prepareInitialPage';
+import { RouterProvider, setAllPages } from './router';
+import { workspaceLoaders } from './workspaces';
 import './styles.css';
 
-bootstrapApp({
-  requests,
-  RouterProvider,
-  render: () => (
-    <>
-      <RouterView />
-    </>
-  ),
-  strings: {
-    defaultLang: stringsDef.defaultLang,
-    langs: stringsDef.langs,
-    defaultTable: en as unknown as Record<string, string>,
-    loadTable: async (lang) => {
-      const mod = (await import(`../shared/lang/${lang}.ts`)) as {
-        default: Record<string, string>;
-      };
-      return mod.default;
-    },
-  },
+setAllPages(allPages);
+// Browser-only: the editor and whiteboard never reach the server bundle.
+workspaceLoaders.coding = () => import('./pages/CodingWorkspace');
+workspaceLoaders.design = () => import('./pages/DesignWorkspace');
+
+void prepareInitialPage(new URL(location.href)).then(() => {
+  bootstrapApp({ requests, RouterProvider, render: renderApp, strings });
 });

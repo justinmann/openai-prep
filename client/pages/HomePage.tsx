@@ -1,130 +1,145 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
+import { companies } from '../../shared/companies';
 import { codingQuestions, designQuestions } from '../../shared/questions';
-import { verdictLabels, type Grade } from '../../shared/grader';
-import { importLocalOnce, useTypedApp } from '../progress';
+import { GITHUB_URL, jsonLdFor } from '../../shared/seo';
+import { JsonLd } from '../components/JsonLd';
+import { SignInButton, useSignedIn } from '../components/SignIn';
+import { SiteFooter, SiteHeader } from '../components/SiteChrome';
 import { Link } from '../router';
+import { CodingCard, DesignCard } from './QuestionsPage';
 
-interface Run {
-  passed: number;
-  total: number;
-}
-interface Progress {
-  /** questionId → best runs (TypeScript and/or Python). */
-  coding: Map<string, Run[]>;
-  grades: Map<string, { verdict: Grade['verdict']; score: number }>;
-}
+// Landing page. Server-rendered; everything here is public.
 
-function CodingBadge({
-  runs,
-  total,
-}: {
-  runs: Run[] | undefined;
-  total: number;
-}): React.ReactElement | null {
-  // Best of TypeScript and Python.
-  const p = [...(runs ?? [])].sort((a, b) => b.passed - a.passed)[0];
-  if (!p) return null;
-  const solved = (runs ?? []).some(
-    (r) => r.passed === r.total && r.total === total,
-  );
-  return (
-    <span className={`badge ${solved ? 'badge-pass' : 'badge-partial'}`}>
-      {solved ? 'Solved' : `${p.passed}/${p.total}`}
-    </span>
-  );
-}
-
-function DesignBadge({
-  last,
-}: {
-  last: { verdict: Grade['verdict']; score: number } | undefined;
-}): React.ReactElement | null {
-  if (!last) return null;
-  const good = last.verdict === 'hire' || last.verdict === 'strong_hire';
-  return (
-    <span className={`badge ${good ? 'badge-pass' : 'badge-partial'}`}>
-      {verdictLabels[last.verdict]} · {last.score}/10
-    </span>
-  );
-}
-
-function useProgress(): Progress | null {
-  const { socket, userId } = useTypedApp();
-  const [progress, setProgress] = useState<Progress | null>(null);
-  useEffect(() => {
-    const run = { live: true };
-    void (async () => {
-      await importLocalOnce(socket, userId);
-      try {
-        const res = await socket.request('progressGet', {});
-        if (!run.live) return;
-        const coding = new Map<string, Run[]>();
-        for (const c of res.coding)
-          if (c.bestPassed !== null && c.bestTotal !== null)
-            coding.set(c.questionId, [
-              ...(coding.get(c.questionId) ?? []),
-              { passed: c.bestPassed, total: c.bestTotal },
-            ]);
-        setProgress({
-          coding,
-          grades: new Map(res.latestGrades.map((g) => [g.questionId, g])),
-        });
-      } catch (err) {
-        console.error('[home] could not load progress', err);
-      }
-    })();
-    return () => {
-      run.live = false;
-    };
-  }, [socket, userId]);
-  return progress;
-}
+const FEATURED_CODING = ['spreadsheet', 'lru-cache-ttl', 'web-crawler'];
+const FEATURED_DESIGN = [
+  'design-chatgpt',
+  'design-payment-ledger',
+  'design-ride-dispatch',
+];
 
 export default function HomePage(): React.ReactElement {
-  const progress = useProgress();
+  const signedIn = useSignedIn();
+  const featuredCoding = codingQuestions.filter((q) =>
+    FEATURED_CODING.includes(q.id),
+  );
+  const featuredDesign = designQuestions.filter((q) =>
+    FEATURED_DESIGN.includes(q.id),
+  );
   return (
-    <div className="home safe-area">
-      <header className="home-head">
-        <div className="eyebrow">Interview practice</div>
-        <h1>OpenAI coding &amp; system design</h1>
+    <div className="home landing safe-area">
+      <JsonLd data={jsonLdFor('', {})} />
+      <SiteHeader />
+
+      <section className="hero">
+        <div className="eyebrow">Free · open source · runs in your browser</div>
+        <h1>
+          Practice the coding and system design questions top tech companies ask
+        </h1>
         <p className="lede">
-          Coding questions run your TypeScript or Python against the tests in
-          your browser. Design questions are graded by AI against the
-          requirements and an interviewer rubric.
+          Real questions candidates report from OpenAI, Anthropic, Google, Meta,
+          Amazon, Stripe and more. Solve multi-part coding problems in
+          TypeScript or Python and run the tests right here. Draw system designs
+          on a whiteboard and get AI feedback graded the way each company
+          grades.
         </p>
-      </header>
+        <div className="cta-row">
+          <Link
+            to="questions"
+            params={{}}
+            className="cta cta-primary"
+            data-id="cta-browse"
+          >
+            Browse {codingQuestions.length + designQuestions.length} questions
+          </Link>
+          {!signedIn && (
+            <SignInButton
+              id="cta-sign-in"
+              label="Sign in to start"
+              variant="secondary"
+            />
+          )}
+          <a
+            href={GITHUB_URL}
+            className="cta cta-ghost"
+            target="_blank"
+            rel="noreferrer"
+            data-id="cta-github"
+          >
+            View on GitHub
+          </a>
+        </div>
+        <dl className="stats">
+          <div>
+            <dt>Coding questions</dt>
+            <dd>{codingQuestions.length}</dd>
+          </div>
+          <div>
+            <dt>System design</dt>
+            <dd>{designQuestions.length}</dd>
+          </div>
+          <div>
+            <dt>Companies</dt>
+            <dd>{companies.length}</dd>
+          </div>
+          <div>
+            <dt>Languages</dt>
+            <dd>TS · Py</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section className="how">
+        <h2>How it works</h2>
+        <div className="how-grid">
+          <div className="how-card">
+            <h3>Code it like the real round</h3>
+            <p>
+              Progressive problems that add requirements part by part, the way
+              practical interviews run. Autocomplete, type errors, a console and
+              a test runner, all in your browser. A guide lists what each
+              language and library offers, interview-safe.
+            </p>
+          </div>
+          <div className="how-card">
+            <h3>Design it on a whiteboard</h3>
+            <p>
+              Sketch the architecture, add notes on numbers, APIs and
+              trade-offs, and get a hire or no-hire verdict with
+              requirement-by-requirement feedback and the follow-ups an
+              interviewer would ask.
+            </p>
+          </div>
+          <div className="how-card">
+            <h3>Scored for your target company</h3>
+            <p>
+              Pick a company and scores shift: Stripe weights correctness and
+              idempotency, Netflix resilience, Amazon operational excellence,
+              Google ambiguity and scale, Meta speed.
+            </p>
+          </div>
+        </div>
+      </section>
 
       <section>
         <div className="section-head">
-          <h2>Coding</h2>
-          <span className="muted">
-            {codingQuestions.length} questions · multi-part, like the real loop
-          </span>
+          <h2>Interview questions by company</h2>
         </div>
-        <div className="grid">
-          {codingQuestions.map((q) => {
-            const total = q.parts.reduce((n, p) => n + p.tests.length, 0);
+        <div className="company-grid">
+          {companies.map((c) => {
+            const n =
+              codingQuestions.filter((q) => q.companies.includes(c.id)).length +
+              designQuestions.filter((q) => q.companies.includes(c.id)).length;
             return (
               <Link
-                key={q.id}
-                to="coding/:id"
-                params={{ id: q.id }}
-                className="qcard"
+                key={c.id}
+                to="companies/:company"
+                params={{ company: c.id }}
+                className="company-card"
+                data-id={`company-${c.id}`}
               >
-                <div className="qcard-top">
-                  <span className={`diff diff-${q.difficulty}`}>
-                    {q.difficulty}
-                  </span>
-                  <CodingBadge
-                    runs={progress?.coding.get(q.id)}
-                    total={total}
-                  />
-                </div>
-                <h3>{q.title}</h3>
-                <p>{q.summary}</p>
-                <div className="qcard-foot">
-                  {q.parts.length} parts · {total} tests · {q.tags.join(', ')}
-                </div>
+                <h3>{c.name}</h3>
+                <p>{c.tagline}</p>
+                <span className="muted small">{n} questions</span>
               </Link>
             );
           })}
@@ -133,45 +148,32 @@ export default function HomePage(): React.ReactElement {
 
       <section>
         <div className="section-head">
-          <h2>System design</h2>
-          <span className="muted">
-            {designQuestions.length} questions · write it up, get graded
-          </span>
+          <h2>Popular coding questions</h2>
+          <Link to="questions" params={{}} data-id="see-all-coding">
+            See all
+          </Link>
         </div>
         <div className="grid">
-          {designQuestions.map((q) => (
-            <Link
-              key={q.id}
-              to="design/:id"
-              params={{ id: q.id }}
-              className="qcard"
-            >
-              <div className="qcard-top">
-                <span className="diff diff-design">design</span>
-                <DesignBadge last={progress?.grades.get(q.id)} />
-              </div>
-              <h3>{q.title}</h3>
-              <p>{q.summary}</p>
-              <div className="qcard-foot">{q.tags.join(', ')}</div>
-            </Link>
+          {featuredCoding.map((q) => (
+            <CodingCard key={q.id} q={q} progress={null} />
+          ))}
+        </div>
+      </section>
+      <section>
+        <div className="section-head">
+          <h2>Popular system design questions</h2>
+          <Link to="questions" params={{}} data-id="see-all-design">
+            See all
+          </Link>
+        </div>
+        <div className="grid">
+          {featuredDesign.map((q) => (
+            <DesignCard key={q.id} q={q} progress={null} />
           ))}
         </div>
       </section>
 
-      <footer className="home-foot muted">
-        The KV serialize question is from{' '}
-        <a
-          data-id="source-link"
-          href="https://www.hellointerview.com/community/questions/kv-serialize-deserialize/cm6xw6unw00003b6qz67bpfaj"
-          target="_blank"
-          rel="noreferrer"
-        >
-          Hello Interview
-        </a>
-        . The rest are written from commonly reported OpenAI interview topics.
-        Drafts, test progress, whiteboards and grades are saved to your account,
-        so you can switch browsers and pick up where you left off.
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

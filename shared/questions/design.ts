@@ -1,3 +1,4 @@
+import { moreDesign } from './more';
 import type { DesignQuestion } from './types';
 
 const chatgpt: DesignQuestion = {
@@ -7,6 +8,11 @@ const chatgpt: DesignQuestion = {
   tags: ['streaming', 'storage', 'LLM serving'],
   summary:
     'A chat product: conversations, streamed model replies, history across devices.',
+  companies: ['openai', 'anthropic'],
+  sources: [
+    'https://www.coditioning.com/blog/16/openai-system-design-interview-questions',
+    'https://www.datainterview.com/blog/anthropic-software-engineer-interview',
+  ],
   prompt:
     'Design the backend for a ChatGPT-style chat product. Users hold multi-turn conversations with a model; replies stream token by token; history syncs across devices. Assume a separate team owns the model inference fleet and exposes it as an internal streaming RPC.',
   functional: [
@@ -84,6 +90,11 @@ const inferenceApi: DesignQuestion = {
   tags: ['GPU', 'batching', 'rate limiting'],
   summary:
     'A public completions API over a GPU fleet: routing, batching, quotas, multiple models.',
+  companies: ['anthropic', 'openai'],
+  sources: [
+    'https://prachub.com/interview-questions/design-a-batched-llm-inference-service-assuming-each-batch-takes-100-ms',
+    'https://prachub.com/companies/anthropic/categories/system-design',
+  ],
   prompt:
     'Design a public API that serves completions from several large language models running on a GPU fleet. Customers authenticate with API keys, call a completions endpoint (optionally streaming), and are billed per token.',
   functional: [
@@ -159,6 +170,11 @@ const webhooks: DesignQuestion = {
   tags: ['queues', 'retries', 'at-least-once'],
   summary:
     'Deliver events to customer endpoints reliably, with retries, ordering and isolation.',
+  companies: ['openai', 'stripe'],
+  sources: [
+    'https://prachub.com/interview-questions/design-webhook-poi-chat-ci-cd-payments',
+    'https://www.techinterview.net/questions/stripe-system-design-interview-questions',
+  ],
   prompt:
     'Internal services emit events (for example "fine-tuning job finished"). Customers register HTTPS endpoints and subscribe to event types. Design the system that delivers each event to every subscribed endpoint.',
   functional: [
@@ -233,6 +249,11 @@ const meteringBilling: DesignQuestion = {
   tags: ['event streaming', 'aggregation', 'correctness'],
   summary:
     'Count API usage accurately at high volume and turn it into invoices and spend limits.',
+  companies: ['anthropic', 'stripe', 'openai'],
+  sources: [
+    'https://extrabrain.app/interview-questions/anthropic-system-design-interview-extrabrain/',
+    'https://ophyai.com/blog/company-guides/stripe-interview-guide',
+  ],
   prompt:
     'Every API request produces usage (model, input tokens, output tokens, org). Design the system that records usage, shows customers near-real-time spend, enforces hard spend limits, and produces correct monthly invoices.',
   functional: [
@@ -303,6 +324,11 @@ const codeSandbox: DesignQuestion = {
   tags: ['security', 'isolation', 'scheduling'],
   summary:
     'Run untrusted model-written code safely for many users, with files and stateful sessions.',
+  companies: ['openai', 'anthropic'],
+  sources: [
+    'https://prachub.com/interview-questions/design-a-sandboxed-cloud-ide',
+    'https://extrabrain.app/interview-questions/anthropic-system-design-interview-extrabrain/',
+  ],
   prompt:
     'The assistant can write and run Python for users (data analysis, plots, file conversion). Design the service that executes this untrusted code. Sessions are stateful: variables and uploaded files persist across several executions in one conversation.',
   functional: [
@@ -375,6 +401,11 @@ const cicd: DesignQuestion = {
   tags: ['scheduling', 'DAGs', 'workers'],
   summary:
     'Run build/test pipelines on every push across a shared worker fleet, then deploy.',
+  companies: ['openai', 'microsoft'],
+  sources: [
+    'https://www.coditioning.com/blog/16/openai-system-design-interview-questions',
+    'https://prachub.com/interview-questions/design-webhook-poi-chat-ci-cd-payments',
+  ],
   prompt:
     'Design a CI/CD system for a company with a large monorepo. Every push triggers a pipeline: a DAG of jobs (build, unit tests sharded across machines, integration tests, deploy). Engineers watch logs live.',
   functional: [
@@ -442,6 +473,12 @@ const gpuScheduler: DesignQuestion = {
   tags: ['scheduling', 'fault tolerance', 'quotas'],
   summary:
     'Share a large GPU cluster among research teams, with gang scheduling, quotas and preemption.',
+  companies: ['openai', 'google', 'amazon'],
+  sources: [
+    'https://prachub.com/interview-questions/design-gpu-credit-allocator',
+    'https://prachub.com/companies/google/categories/system-design',
+    'https://designgurus.substack.com/p/amazon-vs-google-vs-meta-the-2026',
+  ],
   prompt:
     'Researchers submit training jobs that need anywhere from 1 to 4,096 GPUs, all at once (gang scheduled). Design the scheduler for a shared cluster used by many teams.',
   functional: [
@@ -509,6 +546,11 @@ const crawlerDesign: DesignQuestion = {
   tags: ['crawling', 'dedupe', 'politeness'],
   summary:
     'Crawl billions of pages for a training corpus, politely and without duplicates.',
+  companies: ['anthropic', 'google', 'amazon'],
+  sources: [
+    'https://www.intervue.io/blog/anthropic-interview-guide',
+    'https://prachub.com/companies/google/categories/system-design',
+  ],
   prompt:
     'Design a crawler that collects public web pages to build a text dataset. It should discover new pages, re-crawl changed ones, respect site owners, and store cleaned text for downstream processing.',
   functional: [
@@ -582,4 +624,5 @@ export const designQuestions: DesignQuestion[] = [
   cicd,
   gpuScheduler,
   crawlerDesign,
+  ...moreDesign,
 ];

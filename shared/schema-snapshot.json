@@ -326,9 +326,36 @@
         "type": "number",
         "required": true
       },
+      "company": {
+        "type": "string",
+        "required": false,
+        "nullable": true
+      },
       "grade": {
         "type": "object",
         "fields": {
+          "emphasis": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "fields": {
+                "area": {
+                  "type": "string",
+                  "required": true
+                },
+                "note": {
+                  "type": "string",
+                  "required": true
+                },
+                "score": {
+                  "type": "number",
+                  "required": true
+                }
+              },
+              "required": true
+            },
+            "required": false
+          },
           "followUps": {
             "type": "array",
             "items": {

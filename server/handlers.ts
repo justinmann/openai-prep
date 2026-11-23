@@ -38,6 +38,7 @@ const toRecord = (g: DesignGrade): GradeRecordIo => ({
   level: g.level,
   words: g.words,
   shapes: g.shapes,
+  company: g.company ?? null,
   grade: g.grade,
 });
 

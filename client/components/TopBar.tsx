@@ -4,9 +4,12 @@ import { Link } from '../router';
 
 /** Interview-style stopwatch; counts up from when the page opened. */
 function Timer(): React.ReactElement {
-  const [start, setStart] = useState(() => Date.now());
-  const [now, setNow] = useState(() => Date.now());
+  // 0 until mounted: the server-rendered HTML must not depend on the clock.
+  const [start, setStart] = useState(0);
+  const [now, setNow] = useState(0);
   useEffect(() => {
+    setStart(Date.now());
+    setNow(Date.now());
     const t = setInterval(() => {
       setNow(Date.now());
     }, 1000);
@@ -40,17 +43,24 @@ function Timer(): React.ReactElement {
 
 export function TopBar({
   title,
+  heading = false,
   children,
 }: {
   title: string;
+  /** Render the title as the page's h1 (server-rendered question pages). */
+  heading?: boolean;
   children?: React.ReactNode;
 }): React.ReactElement {
   return (
     <div className="topbar">
-      <Link to="" params={{}} className="back">
+      <Link to="questions" params={{}} className="back" data-id="nav-questions">
         ← All questions
       </Link>
-      <div className="topbar-title">{title}</div>
+      {heading ? (
+        <h1 className="topbar-title">{title}</h1>
+      ) : (
+        <div className="topbar-title">{title}</div>
+      )}
       <div className="topbar-actions">
         <Timer />
         {children}

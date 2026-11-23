@@ -28,7 +28,7 @@ test('code and test progress follow you to another browser', async ({
   page,
   browser,
 }) => {
-  const slug = 'openai-prep-progress-code';
+  const slug = `openai-prep-progress-code-${test.info().project.name}`;
   await signIn(page, { slug });
   const errors = trackErrors(page);
   const marker = `// draft ${Date.now()}`;
@@ -46,9 +46,9 @@ test('code and test progress follow you to another browser', async ({
   const other = await secondBrowser(browser, slug);
   await other.goto('/coding/kv-serialize');
   await expect(other.locator('.cm-content')).toContainText(marker);
-  await other.goto('/');
+  await other.goto('/questions');
   await expect(
-    other.locator('a.qcard[href$="/coding/kv-serialize"] .badge'),
+    other.locator('.qcard:has(a[href$="/coding/kv-serialize"]) .badge'),
   ).toBeVisible();
   expect(errors).toEqual([]);
 });
@@ -57,7 +57,7 @@ test('design notes and the whiteboard follow you to another browser', async ({
   page,
   browser,
 }) => {
-  const slug = 'openai-prep-progress-design';
+  const slug = `openai-prep-progress-design-${test.info().project.name}`;
   await signIn(page, { slug });
   await seedDesign(page, 'design-webhooks', { notes: '', diagram: [] });
   const errors = trackErrors(page);

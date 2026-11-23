@@ -2,6 +2,8 @@
 // fenced blocks, bullet lists, **bold**, ### headings) rendered by
 // client/components/Markdown.tsx.
 
+import type { CompanyId } from '../companies';
+
 /**
  * One test case. `code` is the body of an async JavaScript function that runs
  * in the same scope as the candidate's transpiled code, so it can reference
@@ -27,8 +29,10 @@ export interface CodingQuestion {
   difficulty: 'medium' | 'hard';
   tags: string[];
   summary: string;
-  /** Where the question comes from, shown as a link. */
-  sourceUrl?: string;
+  /** Companies reported (or very likely) to ask this or a close variant. */
+  companies: CompanyId[];
+  /** Public candidate reports backing `companies`, shown as links. */
+  sources: string[];
   prompt: string;
   starter: string;
   /** Interviews are progressive: each part adds requirements and tests. */
@@ -68,6 +72,10 @@ export interface DesignQuestion {
   title: string;
   tags: string[];
   summary: string;
+  /** Companies reported (or very likely) to ask this or a close variant. */
+  companies: CompanyId[];
+  /** Public candidate reports backing `companies`, shown as links. */
+  sources: string[];
   prompt: string;
   functional: string[];
   nonFunctional: string[];

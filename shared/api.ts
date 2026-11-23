@@ -37,6 +37,8 @@ export const gradeRecordIo = z.object({
   level: LevelSchema,
   words: z.number().int(),
   shapes: z.number().int().nullable(),
+  /** The company the answer was graded for; absent = general bar. */
+  company: z.string().max(40).nullable().optional(),
   grade: storedGradeSchema,
 });
 export type GradeRecordIo = z.infer<typeof gradeRecordIo>;

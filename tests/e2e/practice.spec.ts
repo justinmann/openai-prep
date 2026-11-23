@@ -2,14 +2,22 @@ import { expect, test } from '@playwright/test';
 import { codingQuestions } from '../../shared/questions/coding';
 import { seedCode, seedDesign, signIn, trackErrors } from './helpers';
 
-test('home lists coding and design questions', async ({ page }) => {
+test('the question list shows every question, with progress when signed in', async ({
+  page,
+}) => {
+  const { codingQuestions: all, designQuestions } =
+    await import('../../shared/questions');
   await signIn(page);
   const errors = trackErrors(page);
-  await page.goto('/');
+  await page.goto('/questions');
   await expect(
-    page.getByRole('heading', { name: 'OpenAI coding & system design' }),
+    page.getByRole('heading', {
+      name: 'Coding & system design interview questions',
+    }),
   ).toBeVisible();
-  await expect(page.locator('.qcard')).toHaveCount(17);
+  await expect(page.locator('.qcard')).toHaveCount(
+    all.length + designQuestions.length,
+  );
   expect(errors).toEqual([]);
 });
 
