@@ -37,6 +37,12 @@ const listNames = (n: string[]) =>
     ? (n[0] ?? '')
     : `${n.slice(0, -1).join(', ')} and ${n[n.length - 1]}`;
 
+/** "Google & Meta " for titles: search results cut titles near 60 chars. */
+const top2 = (ids: readonly string[]) => {
+  const n = names(ids).slice(0, 2);
+  return n.length ? `${n.join(' & ')} ` : '';
+};
+
 const HOME: PageSeo = {
   title:
     'Coding & System Design Interview Practice | OpenAI, Google, Meta, Amazon',
@@ -90,7 +96,7 @@ export function seoFor(
         };
       const who = listNames(names(q.companies));
       return {
-        title: `${q.title}: ${who ? `${who} ` : ''}Coding Interview Question | ${SITE_NAME}`,
+        title: `${q.title}: ${top2(q.companies)}Coding Interview Question`,
         description: clip(
           `${q.summary} A ${q.parts.length}-part ${q.difficulty} coding question${who ? ` reported at ${who}` : ''}. Solve it in TypeScript or Python and run the tests in your browser.`,
         ),
@@ -108,7 +114,7 @@ export function seoFor(
         };
       const who = listNames(names(q.companies));
       return {
-        title: `${q.title}: ${who ? `${who} ` : ''}System Design Interview | ${SITE_NAME}`,
+        title: `${q.title}: ${top2(q.companies)}System Design Interview`,
         description: clip(
           `${q.summary} Requirements, scale numbers and rubric for this system design question${who ? ` reported at ${who}` : ''}. Draw your design and get AI feedback.`,
         ),
