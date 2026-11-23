@@ -1,3 +1,5 @@
+import { tsApi } from './tsApi';
+import { tsReference } from './tsReference';
 import type { LanguageGuide } from './types';
 
 // Interview-safe TypeScript: the features and idioms you can rely on in a
@@ -130,6 +132,15 @@ console.log(BigInt(10) * 3n, 7n / 2n, Number(5n) + 1); // → 30n 3n 6`,
           note: 'Numbers are exact integers only up to 2^53 - 1. BigInt is exact at any size, but you cannot mix it with number (1n + 1 throws) and Math functions do not accept it.',
         },
       ],
+    },
+    tsReference,
+    {
+      id: 'api',
+      label: 'All methods',
+      intro:
+        'Every method and property of the basic types, with its signature, generated from the same TypeScript definitions the editor uses. Deprecated members are left out. Search to jump to one.',
+      entries: [],
+      api: tsApi,
     },
     {
       id: 'loops',

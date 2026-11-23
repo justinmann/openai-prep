@@ -1,3 +1,4 @@
+import { pyApi } from './pyApi';
 import { pyodidePackages, pythonStdlib } from './pythonModules';
 import type { LanguageGuide } from './types';
 
@@ -135,6 +136,14 @@ max(["aa", "b", "ccc"], key=len)           # → 'ccc'`,
           note: 'A single expression, mostly used as a key= function. Use def for anything with statements.',
         },
       ],
+    },
+    {
+      id: 'api',
+      label: 'All methods',
+      intro:
+        'Every public method and attribute of the basic types and the modules interviews lean on (collections, heapq, bisect, math, itertools, functools), with signatures, generated from the Python that runs your code. Search to jump to one.',
+      entries: [],
+      api: pyApi,
     },
     {
       id: 'loops',

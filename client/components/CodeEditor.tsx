@@ -1,3 +1,4 @@
+import { acceptCompletion } from '@codemirror/autocomplete';
 import { indentWithTab } from '@codemirror/commands';
 import { javascript } from '@codemirror/lang-javascript';
 import { markdown } from '@codemirror/lang-markdown';
@@ -66,6 +67,9 @@ export function CodeEditor(props: Props): React.ReactElement {
                 return true;
               },
             },
+            // Tab accepts the highlighted suggestion when the list is open
+            // (Enter still works); otherwise it indents.
+            { key: 'Tab', run: acceptCompletion },
             indentWithTab,
           ]),
           basicSetup,

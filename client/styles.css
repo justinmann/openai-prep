@@ -1171,3 +1171,22 @@ h1.topbar-title {
     gap: 12px;
   }
 }
+.guide-api {
+  margin-top: 16px;
+}
+.guide-api dl {
+  margin: 0;
+}
+.api-row {
+  padding: 5px 0;
+  border-bottom: 1px solid var(--line);
+}
+.api-row dt code {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.api-row dd {
+  margin: 2px 0 0;
+}

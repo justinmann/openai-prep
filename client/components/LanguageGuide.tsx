@@ -4,7 +4,12 @@ import { classHighlighter, highlightCode } from '@lezer/highlight';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Button, Input, TabContent, TabPicker } from 'ugly-app/client';
 import { guides } from '../../shared/guide';
-import type { GuideEntry, GuideTab, ModuleGroup } from '../../shared/guide';
+import type {
+  ApiGroup,
+  GuideEntry,
+  GuideTab,
+  ModuleGroup,
+} from '../../shared/guide';
 import type { Language } from '../../shared/questions';
 import { Markdown } from './Markdown';
 
@@ -119,6 +124,33 @@ function Modules({ groups }: { groups: ModuleGroup[] }): React.ReactElement {
   );
 }
 
+function Api({ groups }: { groups: ApiGroup[] }): React.ReactElement {
+  return (
+    <>
+      {groups.map((g) => (
+        <div key={g.title} className="guide-api" data-id={`api-${g.title}`}>
+          <h4>
+            {g.title}{' '}
+            <span className="muted">
+              {g.prefix ? `${g.prefix}… ` : ''}({g.members.length})
+            </span>
+          </h4>
+          <dl>
+            {g.members.map((m) => (
+              <div key={m.sig} className="api-row">
+                <dt>
+                  <code>{m.sig}</code>
+                </dt>
+                {m.doc && <dd className="muted small">{m.doc}</dd>}
+              </div>
+            ))}
+          </dl>
+        </div>
+      ))}
+    </>
+  );
+}
+
 function TabBody({
   tab,
   lang,
@@ -133,6 +165,7 @@ function TabBody({
         <Entry key={e.title} e={e} lang={lang} id={`${tab.id}-${i}`} />
       ))}
       {tab.modules && <Modules groups={tab.modules} />}
+      {tab.api && <Api groups={tab.api} />}
     </div>
   );
 }
@@ -162,8 +195,16 @@ function SearchResults({
           names: g.names.filter((n) => norm(n).includes(q)),
         }))
         .filter((g) => g.names.length > 0),
+      api: (t.api ?? [])
+        .map((g) => ({
+          ...g,
+          members: g.members.filter((m) =>
+            norm(`${g.prefix}${m.name} ${m.sig} ${m.doc}`).includes(q),
+          ),
+        }))
+        .filter((g) => g.members.length > 0),
     }))
-    .filter((h) => h.entries.length || h.modules.length);
+    .filter((h) => h.entries.length || h.modules.length || h.api.length);
   if (!hits.length)
     return <div className="empty">Nothing matches “{query.trim()}”.</div>;
   return (
@@ -175,6 +216,7 @@ function SearchResults({
             <Entry key={e.title} e={e} lang={lang} id={`s-${h.tab.id}-${i}`} />
           ))}
           {h.modules.length > 0 && <Modules groups={h.modules} />}
+          {h.api.length > 0 && <Api groups={h.api} />}
         </section>
       ))}
     </div>
@@ -239,7 +281,7 @@ export function LanguageGuide({
         </div>
         <div className="guide-search">
           <Input
-            placeholder="Search snippets and modules"
+            placeholder="Search snippets, methods and modules"
             value={query}
             onChange={setQuery}
             data-id="guide-search"

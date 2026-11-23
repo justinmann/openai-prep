@@ -24,7 +24,9 @@ describe('language guide', () => {
       const ids = guide.tabs.map((t) => t.id);
       expect(new Set(ids).size).toBe(ids.length);
       for (const t of guide.tabs)
-        expect(t.entries.length + (t.modules?.length ?? 0)).toBeGreaterThan(0);
+        expect(
+          t.entries.length + (t.modules?.length ?? 0) + (t.api?.length ?? 0),
+        ).toBeGreaterThan(0);
     });
 
     for (const tab of guide.tabs) {
@@ -51,6 +53,19 @@ describe('language guide', () => {
             expect(r.syntaxError).toBeNull();
           }
           expect(results.map((r) => r.message ?? r.status)).toEqual(['pass']);
+          // The Built-ins reference promises exact results: every console.log
+          // line carries a "// →" comment that must match what it printed.
+          if (tab.id === 'reference') {
+            const expected = entry.code
+              .split('\n')
+              .filter((l) => l.includes('console.log('))
+              .map((l) => {
+                const at = l.indexOf('// → ');
+                expect(at, `no "// →" on: ${l}`).toBeGreaterThan(-1);
+                return l.slice(at + 5);
+              });
+            expect(logs).toEqual(expected);
+          }
         }, 20_000);
       }
     }
