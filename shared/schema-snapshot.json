@@ -1,0 +1,498 @@
+{
+  "authMagicLink": {
+    "fields": {
+      "consumedAt": {
+        "type": "number",
+        "required": true,
+        "nullable": true
+      },
+      "email": {
+        "type": "string",
+        "required": true
+      },
+      "expiresAt": {
+        "type": "number",
+        "required": true
+      },
+      "requestIp": {
+        "type": "string",
+        "required": true,
+        "nullable": true
+      },
+      "requestedAt": {
+        "type": "number",
+        "required": true
+      },
+      "tokenHash": {
+        "type": "string",
+        "required": true
+      }
+    },
+    "indexes": [
+      {
+        "fields": {
+          "email": 1
+        }
+      },
+      {
+        "fields": {
+          "expiresAt": 1
+        },
+        "ttl": 86400
+      }
+    ]
+  },
+  "authEmailCode": {
+    "fields": {
+      "attempts": {
+        "type": "number",
+        "required": true
+      },
+      "codeHash": {
+        "type": "string",
+        "required": true
+      },
+      "createdAt": {
+        "type": "number",
+        "required": true
+      },
+      "email": {
+        "type": "string",
+        "required": true
+      },
+      "expiresAt": {
+        "type": "number",
+        "required": true
+      }
+    },
+    "indexes": [
+      {
+        "fields": {
+          "expiresAt": 1
+        },
+        "ttl": 86400
+      }
+    ]
+  },
+  "authIdentity": {
+    "fields": {
+      "createdAt": {
+        "type": "number",
+        "required": true
+      },
+      "email": {
+        "type": "string",
+        "required": true,
+        "nullable": true
+      },
+      "lastLoginAt": {
+        "type": "number",
+        "required": true
+      },
+      "name": {
+        "type": "string",
+        "required": true,
+        "nullable": true
+      },
+      "provider": {
+        "type": "enum",
+        "values": [
+          "magic-link",
+          "google",
+          "uglybot"
+        ],
+        "required": true
+      },
+      "providerKey": {
+        "type": "string",
+        "required": true
+      },
+      "userId": {
+        "type": "string",
+        "required": true
+      }
+    },
+    "indexes": [
+      {
+        "fields": {
+          "providerKey": 1
+        }
+      },
+      {
+        "fields": {
+          "userId": 1
+        }
+      }
+    ]
+  },
+  "emailSuppression": {
+    "fields": {
+      "category": {
+        "type": "string",
+        "required": true,
+        "nullable": true
+      },
+      "email": {
+        "type": "string",
+        "required": true
+      },
+      "reason": {
+        "type": "enum",
+        "values": [
+          "unsubscribed",
+          "bounced",
+          "complained"
+        ],
+        "required": true
+      }
+    },
+    "indexes": [
+      {
+        "fields": {
+          "email": 1
+        }
+      }
+    ]
+  },
+  "debugLogSession": {
+    "fields": {
+      "active": {
+        "type": "boolean",
+        "required": true,
+        "default": false
+      },
+      "expiresAt": {
+        "type": "number",
+        "required": true,
+        "default": 0
+      },
+      "grep": {
+        "type": "string",
+        "required": true,
+        "nullable": true,
+        "default": null
+      },
+      "level": {
+        "type": "enum",
+        "values": [
+          "log",
+          "info",
+          "warn",
+          "error",
+          "debug"
+        ],
+        "required": true,
+        "nullable": true,
+        "default": null
+      },
+      "operatorId": {
+        "type": "string",
+        "required": true,
+        "default": ""
+      },
+      "projectId": {
+        "type": "string",
+        "required": true,
+        "default": ""
+      },
+      "source": {
+        "type": "enum",
+        "values": [
+          "browser",
+          "server",
+          "both"
+        ],
+        "required": true,
+        "default": "browser"
+      },
+      "startedAt": {
+        "type": "number",
+        "required": true,
+        "default": 0
+      },
+      "updatedAt": {
+        "type": "number",
+        "required": true,
+        "default": 0
+      },
+      "userId": {
+        "type": "string",
+        "required": true
+      }
+    },
+    "indexes": [
+      {
+        "fields": {
+          "userId": 1
+        }
+      },
+      {
+        "fields": {
+          "expiresAt": 1
+        },
+        "ttl": 3600
+      }
+    ]
+  },
+  "debugLogStream": {
+    "fields": {
+      "userId": {
+        "type": "string",
+        "required": true
+      }
+    },
+    "indexes": [
+      {
+        "fields": {
+          "userId": 1
+        }
+      }
+    ]
+  },
+  "codingWork": {
+    "fields": {
+      "bestPassed": {
+        "type": "number",
+        "required": true,
+        "nullable": true
+      },
+      "bestTotal": {
+        "type": "number",
+        "required": true,
+        "nullable": true
+      },
+      "code": {
+        "type": "string",
+        "required": true,
+        "nullable": true
+      },
+      "language": {
+        "type": "enum",
+        "values": [
+          "typescript",
+          "python"
+        ],
+        "required": true
+      },
+      "questionId": {
+        "type": "string",
+        "required": true
+      },
+      "userId": {
+        "type": "string",
+        "required": true
+      }
+    },
+    "indexes": [
+      {
+        "fields": {
+          "userId": 1
+        }
+      }
+    ]
+  },
+  "designWork": {
+    "fields": {
+      "diagram": {
+        "type": "string",
+        "required": true,
+        "nullable": true
+      },
+      "notes": {
+        "type": "string",
+        "required": true,
+        "nullable": true
+      },
+      "questionId": {
+        "type": "string",
+        "required": true
+      },
+      "userId": {
+        "type": "string",
+        "required": true
+      }
+    },
+    "indexes": [
+      {
+        "fields": {
+          "userId": 1
+        }
+      }
+    ]
+  },
+  "designGrade": {
+    "fields": {
+      "at": {
+        "type": "number",
+        "required": true
+      },
+      "grade": {
+        "type": "object",
+        "fields": {
+          "followUps": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "required": true
+            },
+            "required": true
+          },
+          "improvements": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "required": true
+            },
+            "required": true
+          },
+          "requirements": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "fields": {
+                "id": {
+                  "type": "string",
+                  "required": false
+                },
+                "note": {
+                  "type": "string",
+                  "required": true
+                },
+                "requirement": {
+                  "type": "string",
+                  "required": false
+                },
+                "status": {
+                  "type": "enum",
+                  "values": [
+                    "met",
+                    "partial",
+                    "missing"
+                  ],
+                  "required": true
+                }
+              },
+              "required": true
+            },
+            "required": true
+          },
+          "rubric": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "fields": {
+                "id": {
+                  "type": "string",
+                  "required": true
+                },
+                "note": {
+                  "type": "string",
+                  "required": true
+                },
+                "status": {
+                  "type": "enum",
+                  "values": [
+                    "met",
+                    "partial",
+                    "missing"
+                  ],
+                  "required": true
+                }
+              },
+              "required": true
+            },
+            "required": true
+          },
+          "score": {
+            "type": "number",
+            "required": true
+          },
+          "strengths": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "required": true
+            },
+            "required": true
+          },
+          "summary": {
+            "type": "string",
+            "required": true
+          },
+          "verdict": {
+            "type": "enum",
+            "values": [
+              "strong_hire",
+              "hire",
+              "lean_hire",
+              "lean_no_hire",
+              "no_hire"
+            ],
+            "required": true
+          }
+        },
+        "required": true
+      },
+      "level": {
+        "type": "enum",
+        "values": [
+          "L4",
+          "L5",
+          "L6"
+        ],
+        "required": true
+      },
+      "questionId": {
+        "type": "string",
+        "required": true
+      },
+      "shapes": {
+        "type": "number",
+        "required": true,
+        "nullable": true
+      },
+      "userId": {
+        "type": "string",
+        "required": true
+      },
+      "words": {
+        "type": "number",
+        "required": true
+      }
+    },
+    "indexes": [
+      {
+        "fields": {
+          "userId": 1,
+          "questionId": 1,
+          "at": -1
+        }
+      }
+    ]
+  },
+  "userPrefs": {
+    "fields": {
+      "language": {
+        "type": "enum",
+        "values": [
+          "typescript",
+          "python"
+        ],
+        "required": true
+      },
+      "level": {
+        "type": "enum",
+        "values": [
+          "L4",
+          "L5",
+          "L6"
+        ],
+        "required": true
+      },
+      "userId": {
+        "type": "string",
+        "required": true
+      }
+    }
+  }
+}

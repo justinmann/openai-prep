@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { signIn } from './helpers';
 
 function trackErrors(page: Page): string[] {
   const errors: string[] = [];
@@ -17,6 +18,7 @@ test('the ? guide opens with tabs, searches, and switches language', async ({
   page,
 }) => {
   const errors = trackErrors(page);
+  await signIn(page);
   await page.goto('/coding/kv-serialize');
   await page.locator('[data-id="lang-typescript"]').click();
   await page.locator('[data-id="open-guide"]').click();
@@ -67,6 +69,7 @@ test('the ? guide opens with tabs, searches, and switches language', async ({
 test('the guide opens in the current language and closes on Escape', async ({
   page,
 }) => {
+  await signIn(page);
   await page.goto('/coding/kv-serialize');
   await page.locator('[data-id="lang-python"]').click();
   await page.locator('[data-id="open-guide"]').click();

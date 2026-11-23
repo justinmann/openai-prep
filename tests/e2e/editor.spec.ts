@@ -1,8 +1,10 @@
 import { expect, test, type Page } from '@playwright/test';
+import { signIn } from './helpers';
 
 // "Run code", and the editor's language services (completions, underlines).
 
 async function useLanguage(page: Page, lang: 'typescript' | 'python') {
+  await signIn(page);
   await page.goto('/coding/kv-serialize');
   await page.locator(`[data-id="lang-${lang}"]`).click();
   await expect(page.locator('.cm-content')).toContainText(

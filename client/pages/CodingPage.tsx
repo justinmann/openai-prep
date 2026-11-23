@@ -20,7 +20,12 @@ import {
   type RunMode,
   type RunUpdate,
 } from '../runner/runCode';
-import { codeDraft, codingProgress, langKey, prefs } from '../storage';
+import {
+  importLocalOnce,
+  saveLabel,
+  useAutosave,
+  useTypedApp,
+} from '../progress';
 
 const ICON: Record<string, string> = {
   pass: '✓',
@@ -31,9 +36,37 @@ const ICON: Record<string, string> = {
 
 export default function CodingPage({ id }: { id: string }): React.ReactElement {
   const q = findCoding(id);
-  const [lang, setLang] = useState<Language>(() =>
-    q?.python ? prefs.language() : 'typescript',
+  const { socket, userId } = useTypedApp();
+  // The saved draft for the language on screen; null while loading.
+  const [state, setState] = useState<{
+    lang: Language;
+    code: string | null;
+  } | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const load = useCallback(
+    async (want?: Language) => {
+      if (!q) return;
+      setLoadError(null);
+      try {
+        await importLocalOnce(socket, userId);
+        const res = await socket.request('codingGet', { questionId: q.id });
+        const lang = q.python ? (want ?? res.prefs.language) : 'typescript';
+        setState({
+          lang,
+          code: res.work.find((w) => w.language === lang)?.code ?? null,
+        });
+      } catch (err) {
+        console.error('[coding] could not load your draft', err);
+        setLoadError('Could not load your saved code.');
+      }
+    },
+    [q, socket, userId],
   );
+  useEffect(() => {
+    void load();
+  }, [load]);
+
   if (!q)
     return (
       <div className="notfound">
@@ -43,14 +76,40 @@ export default function CodingPage({ id }: { id: string }): React.ReactElement {
         </Link>
       </div>
     );
+  if (!state)
+    return (
+      <div className="notfound">
+        {loadError ? (
+          <>
+            {loadError}{' '}
+            <Button
+              size="sm"
+              variant="secondary"
+              data-id="retry-load"
+              onClick={() => void load()}
+            >
+              Retry
+            </Button>
+          </>
+        ) : (
+          'Loading your code…'
+        )}
+      </div>
+    );
   return (
     <CodingWorkspace
-      key={`${q.id}:${lang}`}
+      key={`${q.id}:${state.lang}`}
       q={q}
-      lang={lang}
+      lang={state.lang}
+      savedCode={state.code}
       onLang={(l) => {
-        prefs.setLanguage(l);
-        setLang(l);
+        setState(null);
+        void socket
+          .request('prefsSet', { language: l })
+          .catch((err: unknown) => {
+            console.error('[coding] could not save language', err);
+          });
+        void load(l);
       }}
     />
   );
@@ -151,20 +210,22 @@ function ConsolePane({
 function CodingWorkspace({
   q,
   lang,
+  savedCode,
   onLang,
 }: {
   q: CodingQuestion;
   lang: Language;
+  savedCode: string | null;
   onLang: (l: Language) => void;
 }): React.ReactElement {
   const view = useMemo(() => questionIn(q, lang), [q, lang]);
-  const key = langKey(q.id, lang);
+  const { socket } = useTypedApp();
   const tests = useMemo(() => view.parts.flatMap((p) => p.tests), [view]);
   const partOf = useMemo(
     () => view.parts.flatMap((p, pi) => p.tests.map(() => pi)),
     [view],
   );
-  const [code, setCode] = useState(() => codeDraft.get(key) ?? view.starter);
+  const [code, setCode] = useState(() => savedCode ?? view.starter);
   const [run, setRun] = useState<RunUpdate | null>(null);
   // "Run code" (no tests) is tracked apart so it never wipes test results.
   const [mainRun, setMainRun] = useState<RunUpdate | null>(null);
@@ -189,14 +250,17 @@ function CodingWorkspace({
   const codeRef = useRef(code);
   codeRef.current = code;
 
-  useEffect(() => {
-    const t = setTimeout(() => {
-      codeDraft.set(key, code);
-    }, 300);
-    return () => {
-      clearTimeout(t);
-    };
-  }, [code, key]);
+  // Untouched starter code is saved as null, so a later starter change shows up.
+  const saveStatus = useAutosave(
+    code,
+    (c) =>
+      socket.request('codingSave', {
+        questionId: q.id,
+        language: lang,
+        code: c === view.starter ? null : c,
+      }),
+    800,
+  );
 
   useEffect(() => () => handle.current?.cancel(), []);
 
@@ -222,13 +286,19 @@ function CodingWorkspace({
     handle.current = runCode(lang, codeRef.current, tests, (u) => {
       setRun(u);
       if (u.done && !u.compileError) {
-        codingProgress.record(key, {
-          passed: u.results.filter((r) => r?.status === 'pass').length,
-          total: tests.length,
-        });
+        socket
+          .request('codingRecordRun', {
+            questionId: q.id,
+            language: lang,
+            passed: u.results.filter((r) => r?.status === 'pass').length,
+            total: tests.length,
+          })
+          .catch((err: unknown) => {
+            console.error('[coding] could not save test progress', err);
+          });
       }
     });
-  }, [key, lang, tests]);
+  }, [socket, q.id, lang, tests]);
 
   const passedIn = (pi: number) =>
     run
@@ -242,6 +312,12 @@ function CodingWorkspace({
   return (
     <div className="workspace">
       <TopBar title={q.title}>
+        <span
+          className={`muted small save-status ${saveStatus === 'error' ? 'error' : ''}`}
+          data-id="save-status"
+        >
+          {saveLabel[saveStatus]}
+        </span>
         {q.python && <LanguagePicker lang={lang} onLang={onLang} />}
         <Button
           variant="ghost"
@@ -421,7 +497,6 @@ function CodingWorkspace({
                       data-id="confirm-reset"
                       onClick={() => {
                         setCode(view.starter);
-                        codeDraft.clear(key);
                         setConfirmReset(false);
                       }}
                     >

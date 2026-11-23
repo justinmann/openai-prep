@@ -1,4 +1,9 @@
-import { createApp, type AppConfigurator, type InboundEmail } from 'ugly-app';
+import {
+  createApp,
+  type AppConfigurator,
+  type InboundEmail,
+  type RequestHandlers,
+} from 'ugly-app';
 import { messages, requests } from '../shared/api';
 import { collections } from '../shared/collections';
 import { cronTasks } from '../shared/cron';
@@ -7,6 +12,7 @@ import en from '../shared/lang/en';
 import es from '../shared/lang/es';
 import { pages } from '../shared/pages';
 import { stringsDef } from '../shared/strings';
+import { createHandlers, type DbSurface } from './handlers';
 
 // Untyped on purpose: a fresh scaffold declares no cron tasks, so
 // `WorkerHandlers<typeof cronTasks>` resolves to `{}` and trips
@@ -14,9 +20,15 @@ import { stringsDef } from '../shared/strings';
 // still checks the pair, so adding a task and a mismatched handler is caught.
 const cronHandlers = {};
 
+// Lazy DB resolver: handlers need app.db, but referencing `app` inside its own
+// initializer is circular. Filled in right after construction, before any
+// request can arrive.
+const appRef: { db: object | null } = { db: null };
+const getDb = (() => appRef.db) as () => DbSurface;
+
 const app = createApp(
   { requests, messages },
-  {},
+  createHandlers(getDb) satisfies RequestHandlers<typeof requests>,
   collections,
   (configurator: AppConfigurator) => {
     configurator.setPages({ pages });
@@ -42,6 +54,8 @@ const app = createApp(
     });
   },
 );
+
+appRef.db = app.db;
 
 // eslint-disable-next-line @typescript-eslint/dot-notation
 const port = parseInt(process.env['PORT'] ?? '4321');

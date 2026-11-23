@@ -11,22 +11,25 @@ import {
   CollectionDO,
   SessionDO,
   createWorkersApp,
+  getAppContext,
 } from 'ugly-app/server/adapter/workers';
+import type { RequestHandlers } from 'ugly-app';
 
 import { messages, requests } from '../shared/api';
 import { collections } from '../shared/collections';
 import { cronTasks } from '../shared/cron';
 import { pages } from '../shared/pages';
+import { createHandlers, type DbSurface } from './handlers';
 
-// Request handlers run inside the Worker for `fetch` requests. Keep these in
-// sync with `server/index.ts` — a handler registered only on the Node entry is
-// "not registered" on the deployed Worker. (`app` is referenced inside the async
-// body, resolved at request time after `app` below is assigned.)
-// Untyped on purpose, like `cronHandlers` below: a fresh scaffold declares no
-// requests, so `Partial<RequestHandlers<typeof requests>>` resolves to `{}` and
-// trips no-generated-empty-object-type. `createWorkersApp` type-checks this
-// argument, so a handler that does not match its request is still caught.
-const requestHandlers = {};
+// Same handler module as server/index.ts, so the two entries cannot drift. The
+// Worker has no long-lived app, so TypedDB comes from the request context.
+const getDb = (): DbSurface => {
+  const ctx = getAppContext();
+  if (!ctx.typedDb) throw new Error('[workers] typedDb not initialized');
+  return ctx.typedDb;
+};
+const requestHandlers: Partial<RequestHandlers<typeof requests>> =
+  createHandlers(getDb);
 
 // Cron handlers run on Cloudflare Cron Triggers (matches shared/cron.ts).
 const cronHandlers = {};

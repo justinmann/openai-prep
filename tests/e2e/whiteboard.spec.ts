@@ -1,38 +1,10 @@
-import { expect, test, type Page } from '@playwright/test';
-import { authenticateAs, testAccount } from 'ugly-app/playwright';
+import { expect, test } from '@playwright/test';
+import { api, seedDesign, signIn, trackErrors } from './helpers';
 
 // The design page's Excalidraw whiteboard: sign-in gate, drawing, persistence,
 // and grading a drawn answer (diagram image + outline reach the model).
 
 const Q = 'design-webhooks';
-const DIAGRAM_KEY = `oaiprep:diagram:${Q}`;
-
-function trackErrors(page: Page): string[] {
-  const errors: string[] = [];
-  page.on('pageerror', (err) => errors.push(`pageerror: ${err.message}`));
-  page.on('console', (msg) => {
-    const devOnly =
-      msg.text().includes('received when fetching the script') ||
-      /\/(ugly-push-sw\.js|manifest\.webmanifest)$/.test(msg.location().url);
-    // Excalidraw registers an `unload` listener, which the page's
-    // Permissions-Policy blocks; Chrome logs it but nothing breaks.
-    const excalidrawUnload = msg
-      .text()
-      .includes('Permissions policy violation: unload');
-    if (msg.type() === 'error' && !devOnly && !excalidrawUnload)
-      errors.push(`console.error: ${msg.text()}`);
-  });
-  return errors;
-}
-
-async function signIn(page: Page, name: string, requireSpend = false) {
-  const acct = await testAccount(name, requireSpend ? { requireSpend } : {});
-  await authenticateAs(
-    page,
-    acct,
-    new URL(test.info().project.use.baseURL ?? 'http://localhost').hostname,
-  );
-}
 
 test('the design page requires sign-in', async ({ page }) => {
   await page.goto(`/design/${Q}`);
@@ -44,9 +16,8 @@ test('the design page requires sign-in', async ({ page }) => {
 test('drawing on the whiteboard is counted and survives a reload', async ({
   page,
 }) => {
-  await signIn(page, 'openai-prep-board');
-  await page.goto('/');
-  await page.evaluate((k) => localStorage.removeItem(k), DIAGRAM_KEY);
+  await signIn(page);
+  await seedDesign(page, Q, { notes: '', diagram: [] });
   const errors = trackErrors(page);
   await page.goto(`/design/${Q}`);
 
@@ -70,15 +41,20 @@ test('drawing on the whiteboard is counted and survives a reload', async ({
   await page.mouse.up();
 
   await expect(page.locator('.statusbar')).toContainText('1 on the board');
+  // Saved to the account, not just the browser.
   await expect
-    .poll(() =>
-      page.evaluate(
-        (k) =>
-          (JSON.parse(localStorage.getItem(k) ?? '[]') as { type: string }[])
-            .map((e) => e.type)
-            .join(','),
-        DIAGRAM_KEY,
-      ),
+    .poll(
+      async () => {
+        const { diagram } = await api<{ diagram: string | null }>(
+          page,
+          'designGet',
+          { questionId: Q },
+        );
+        return (JSON.parse(diagram ?? '[]') as { type: string }[])
+          .map((e) => e.type)
+          .join(',');
+      },
+      { timeout: 15_000 },
     )
     .toBe('rectangle');
 
@@ -94,7 +70,7 @@ test('drawing on the whiteboard is counted and survives a reload', async ({
 
 test('a drawn design with short notes gets AI feedback', async ({ page }) => {
   test.setTimeout(180_000);
-  await signIn(page, 'openai-prep-design', true);
+  await signIn(page, { requireSpend: true });
 
   // A minimal scene; Excalidraw's restore() fills in every other field.
   const shape = (id: string, x: number, label: string) => [
@@ -147,14 +123,7 @@ test('a drawn design with short notes gets AI feedback', async ({ page }) => {
   const notes =
     'At-least-once delivery, HMAC signed, exponential backoff for 3 days then dead letter. Per-endpoint concurrency limits and circuit breakers. 200k deliveries/sec.';
 
-  await page.goto('/');
-  await page.evaluate(
-    ([dk, nk, d, n]) => {
-      localStorage.setItem(dk!, d!);
-      localStorage.setItem(nk!, n!);
-    },
-    [DIAGRAM_KEY, `oaiprep:design:${Q}`, JSON.stringify(scene), notes],
-  );
+  await seedDesign(page, Q, { notes, diagram: scene });
   const errors = trackErrors(page);
   const sent = page.waitForRequest(
     (r) => r.url().endsWith('/request') && r.method() === 'POST',

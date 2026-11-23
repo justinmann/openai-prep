@@ -18,13 +18,14 @@ import { CodeEditor } from '../components/CodeEditor';
 import { Markdown } from '../components/Markdown';
 import { TopBar } from '../components/TopBar';
 import { Link } from '../router';
+import type { GradeRecordIo as GradeRecord } from '../../shared/api';
 import {
-  designDiagram,
-  designDraft,
-  gradeHistory,
-  prefs,
-  type GradeRecord,
-} from '../storage';
+  importLocalOnce,
+  saveLabel,
+  useAutosave,
+  useTypedApp,
+  type SaveStatus,
+} from '../progress';
 
 const loadWhiteboard = () => import('../components/Whiteboard');
 const Whiteboard = lazy(loadWhiteboard);
@@ -52,8 +53,64 @@ const TEMPLATE = `## Requirements & assumptions
 
 const countWords = (s: string) => (s.match(/[A-Za-z0-9]+/g) ?? []).length;
 
+interface Saved {
+  notes: string | null;
+  diagram: unknown[];
+  grades: GradeRecord[];
+  level: Level;
+}
+
+/** Saved diagram JSON → elements; anything unparseable starts an empty board. */
+function parseDiagram(json: string | null): unknown[] {
+  if (!json) return [];
+  try {
+    const v: unknown = JSON.parse(json);
+    return Array.isArray(v)
+      ? v.filter(
+          (e) =>
+            typeof e === 'object' &&
+            e !== null &&
+            typeof (e as { id?: unknown }).id === 'string' &&
+            typeof (e as { type?: unknown }).type === 'string',
+        )
+      : [];
+  } catch {
+    return [];
+  }
+}
+
 export default function DesignPage({ id }: { id: string }): React.ReactElement {
   const q = findDesign(id);
+  const { socket, userId } = useTypedApp();
+  const [saved, setSaved] = useState<Saved | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
+
+  useEffect(() => {
+    if (!q) return;
+    const run = { live: true };
+    setLoadError(null);
+    void (async () => {
+      try {
+        await importLocalOnce(socket, userId);
+        const res = await socket.request('designGet', { questionId: q.id });
+        if (run.live)
+          setSaved({
+            notes: res.notes,
+            diagram: parseDiagram(res.diagram),
+            grades: res.grades,
+            level: res.prefs.level,
+          });
+      } catch (err) {
+        console.error('[design] could not load your work', err);
+        if (run.live) setLoadError('Could not load your saved work.');
+      }
+    })();
+    return () => {
+      run.live = false;
+    };
+  }, [q, socket, userId, attempt]);
+
   if (!q)
     return (
       <div className="notfound">
@@ -63,22 +120,57 @@ export default function DesignPage({ id }: { id: string }): React.ReactElement {
         </Link>
       </div>
     );
-  return <DesignWorkspace key={q.id} q={q} />;
+  if (!saved)
+    return (
+      <div className="notfound">
+        {loadError ? (
+          <>
+            {loadError}{' '}
+            <Button
+              size="sm"
+              variant="secondary"
+              data-id="retry-load"
+              onClick={() => {
+                setAttempt((n) => n + 1);
+              }}
+            >
+              Retry
+            </Button>
+          </>
+        ) : (
+          'Loading your work…'
+        )}
+      </div>
+    );
+  return <DesignWorkspace key={q.id} q={q} saved={saved} />;
 }
 
-function DesignWorkspace({ q }: { q: DesignQuestion }): React.ReactElement {
-  const [text, setText] = useState(() => designDraft.get(q.id) ?? TEMPLATE);
-  const [savedDiagram] = useState(() => designDiagram.get(q.id));
+const worst = (a: SaveStatus, b: SaveStatus): SaveStatus =>
+  a === 'error' || b === 'error'
+    ? 'error'
+    : a === 'saving' || b === 'saving'
+      ? 'saving'
+      : 'saved';
+
+function DesignWorkspace({
+  q,
+  saved,
+}: {
+  q: DesignQuestion;
+  saved: Saved;
+}): React.ReactElement {
+  const { socket } = useTypedApp();
+  const [text, setText] = useState(() => saved.notes ?? TEMPLATE);
+  const savedDiagram = saved.diagram;
   const diagram = useRef<readonly ExcalidrawElement[] | null>(null);
+  // JSON of the board, updated only when the drawing itself changes.
+  const [diagramJson, setDiagramJson] = useState<string | null>(null);
   const [shapes, setShapes] = useState(() =>
     countDrawn(savedDiagram as ExcalidrawElement[]),
   );
   const [notesOpen, setNotesOpen] = useState(true);
-  const saveDiagram = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [level, setLevel] = useState<Level>(() => prefs.level());
-  const [history, setHistory] = useState<GradeRecord[]>(() =>
-    gradeHistory.get(q.id),
-  );
+  const [level, setLevel] = useState<Level>(saved.level);
+  const [history, setHistory] = useState<GradeRecord[]>(saved.grades);
   const [shown, setShown] = useState(0);
   const [grading, setGrading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -87,33 +179,26 @@ function DesignWorkspace({ q }: { q: DesignQuestion }): React.ReactElement {
   );
   const abort = useRef<AbortController | null>(null);
 
-  useEffect(() => {
-    const t = setTimeout(() => {
-      designDraft.set(q.id, text);
-    }, 300);
-    return () => {
-      clearTimeout(t);
-    };
-  }, [text, q.id]);
-  useEffect(
-    () => () => {
-      abort.current?.abort();
-      if (saveDiagram.current) {
-        clearTimeout(saveDiagram.current);
-        if (diagram.current) designDiagram.set(q.id, diagram.current);
-      }
-    },
-    [q.id],
+  const notesStatus = useAutosave(
+    text,
+    (notes) => socket.request('designSave', { questionId: q.id, notes }),
+    800,
   );
+  const boardStatus = useAutosave(
+    diagramJson,
+    (json) =>
+      json === null
+        ? Promise.resolve()
+        : socket.request('designSave', { questionId: q.id, diagram: json }),
+    1200,
+  );
+  const saveStatus = worst(notesStatus, boardStatus);
+  useEffect(() => () => abort.current?.abort(), []);
 
   const onDiagramChange = (elements: readonly ExcalidrawElement[]) => {
     diagram.current = elements;
     setShapes(countDrawn(elements));
-    if (saveDiagram.current) clearTimeout(saveDiagram.current);
-    saveDiagram.current = setTimeout(() => {
-      saveDiagram.current = null;
-      designDiagram.set(q.id, elements);
-    }, 400);
+    setDiagramJson(JSON.stringify(elements));
   };
 
   const words = countWords(text) - countWords(TEMPLATE);
@@ -161,14 +246,26 @@ function DesignWorkspace({ q }: { q: DesignQuestion }): React.ReactElement {
           ? content
           : content.map((p) => (p.type === 'text' ? p.text : '')).join('');
       const g = parseGrade(raw);
-      const next = gradeHistory.add(q.id, {
+      const record: GradeRecord = {
         at: Date.now(),
         level,
         words: Math.max(0, words),
         shapes,
         grade: g,
-      });
-      setHistory(next);
+      };
+      // Show it at once; the server copy is what other browsers will see.
+      setHistory((h) => [record, ...h].slice(0, 10));
+      socket
+        .request('designAddGrade', { questionId: q.id, record })
+        .then((res) => {
+          setHistory(res.grades);
+        })
+        .catch((err: unknown) => {
+          console.error('[design] could not save the grade', err);
+          setError(
+            'Graded, but the result could not be saved to your account.',
+          );
+        });
       setShown(0);
       setLeft('feedback');
     } catch (err) {
@@ -201,7 +298,11 @@ function DesignWorkspace({ q }: { q: DesignQuestion }): React.ReactElement {
               aria-label={`Grade as ${levels[l]}`}
               onClick={() => {
                 setLevel(l);
-                prefs.setLevel(l);
+                void socket
+                  .request('prefsSet', { level: l })
+                  .catch((err: unknown) => {
+                    console.error('[design] could not save level', err);
+                  });
               }}
             >
               {l}
@@ -338,7 +439,13 @@ function DesignWorkspace({ q }: { q: DesignQuestion }): React.ReactElement {
           <div className="statusbar">
             <span className="muted small">
               {shapes} on the board · {Math.max(0, words)} words · graded as{' '}
-              {levels[level]} · saved in this browser
+              {levels[level]} ·{' '}
+              <span
+                data-id="save-status"
+                className={saveStatus === 'error' ? 'error' : ''}
+              >
+                {saveLabel[saveStatus]}
+              </span>
             </span>
             {error && <span className="error small">{error}</span>}
           </div>
@@ -373,7 +480,7 @@ function Feedback({
           <div className="verdict-label">{verdictLabels[g.verdict]}</div>
           <div className="muted small">
             as {levels[rec.level]} ·{' '}
-            {rec.shapes !== undefined ? `${rec.shapes} on the board · ` : ''}
+            {rec.shapes != null ? `${rec.shapes} on the board · ` : ''}
             {rec.words} words · {new Date(rec.at).toLocaleString()}
           </div>
         </div>

@@ -1,28 +1,9 @@
-import { expect, test, type Page } from '@playwright/test';
-import { authenticateAs, testAccount } from 'ugly-app/playwright';
+import { expect, test } from '@playwright/test';
 import { codingQuestions } from '../../shared/questions/coding';
-
-function trackErrors(page: Page): string[] {
-  const errors: string[] = [];
-  page.on('pageerror', (err) => errors.push(`pageerror: ${err.message}`));
-  page.on('console', (msg) => {
-    // Dev-only: the framework's push service worker and web manifest are not
-    // served locally. Browsers word the 404 differently, so match the URL.
-    const devOnly =
-      msg.text().includes('received when fetching the script') ||
-      /\/(ugly-push-sw\.js|manifest\.webmanifest)$/.test(msg.location().url);
-    if (msg.type() === 'error' && !devOnly)
-      errors.push(`console.error: ${msg.text()}`);
-  });
-  return errors;
-}
-
-async function seedDraft(page: Page, key: string, value: string) {
-  await page.goto('/');
-  await page.evaluate(([k, v]) => localStorage.setItem(k!, v!), [key, value]);
-}
+import { seedCode, seedDesign, signIn, trackErrors } from './helpers';
 
 test('home lists coding and design questions', async ({ page }) => {
+  await signIn(page);
   const errors = trackErrors(page);
   await page.goto('/');
   await expect(
@@ -33,6 +14,7 @@ test('home lists coding and design questions', async ({ page }) => {
 });
 
 test('starter code runs and fails the tests', async ({ page }) => {
+  await signIn(page);
   const errors = trackErrors(page);
   await page.goto('/coding/kv-serialize');
   await expect(page.locator('.cm-content')).toContainText('function serialize');
@@ -45,9 +27,10 @@ test('starter code runs and fails the tests', async ({ page }) => {
 test('reference solution passes every test in the browser', async ({
   page,
 }) => {
+  await signIn(page);
   const q = codingQuestions.find((x) => x.id === 'kv-serialize')!;
   const total = q.parts.reduce((n, p) => n + p.tests.length, 0);
-  await seedDraft(page, 'oaiprep:code:kv-serialize', q.solution);
+  await seedCode(page, 'kv-serialize', q.solution);
   const errors = trackErrors(page);
   await page.goto('/coding/kv-serialize');
   await page.locator('[data-id="run-tests"]').click();
@@ -59,6 +42,7 @@ test('reference solution passes every test in the browser', async ({
 });
 
 test('typing in the editor and the console tab work', async ({ page }) => {
+  await signIn(page);
   await page.goto('/coding/kv-serialize');
   await page.locator('[data-id="reset-code"]').click();
   await page.locator('[data-id="confirm-reset"]').click();
@@ -74,9 +58,10 @@ test('typing in the editor and the console tab work', async ({ page }) => {
 });
 
 test('an infinite loop is stopped, not frozen', async ({ page }) => {
-  await seedDraft(
+  await signIn(page);
+  await seedCode(
     page,
-    'oaiprep:code:kv-serialize',
+    'kv-serialize',
     'function serialize(d) { while (true) {} }\nfunction deserialize(s) { return {}; }',
   );
   await page.goto('/coding/kv-serialize');
@@ -90,6 +75,7 @@ test('an infinite loop is stopped, not frozen', async ({ page }) => {
 });
 
 test('npm packages can be imported from esm.sh', async ({ page }) => {
+  await signIn(page);
   const code = [
     "import { chunk } from 'lodash-es';",
     "import * as _ from 'lodash-es';",
@@ -99,7 +85,7 @@ test('npm packages can be imported from esm.sh', async ({ page }) => {
     '}',
     'function deserialize(s: string): Record<string, string> { return {}; }',
   ].join('\n');
-  await seedDraft(page, 'oaiprep:code:kv-serialize', code);
+  await seedCode(page, 'kv-serialize', code);
   const errors = trackErrors(page);
   await page.goto('/coding/kv-serialize');
   await page.locator('[data-id="run-tests"]').click();
@@ -114,9 +100,10 @@ test('npm packages can be imported from esm.sh', async ({ page }) => {
 });
 
 test('a missing package is reported by name', async ({ page }) => {
-  await seedDraft(
+  await signIn(page);
+  await seedCode(
     page,
-    'oaiprep:code:kv-serialize',
+    'kv-serialize',
     "import x from 'this-package-does-not-exist-zz9';\nconsole.log(x);",
   );
   await page.goto('/coding/kv-serialize');
@@ -128,7 +115,8 @@ test('a missing package is reported by name', async ({ page }) => {
 });
 
 test('a syntax error is reported', async ({ page }) => {
-  await seedDraft(page, 'oaiprep:code:kv-serialize', 'function serialize( {');
+  await signIn(page);
+  await seedCode(page, 'kv-serialize', 'function serialize( {');
   await page.goto('/coding/kv-serialize');
   await page.locator('[data-id="run-tests"]').click();
   await expect(page.locator('.compile-error')).toContainText(
@@ -138,12 +126,7 @@ test('a syntax error is reported', async ({ page }) => {
 
 test('design answer gets AI feedback', async ({ page }) => {
   test.setTimeout(180_000);
-  const acct = await testAccount('openai-prep-design', { requireSpend: true });
-  await authenticateAs(
-    page,
-    acct,
-    new URL(test.info().project.use.baseURL ?? 'http://localhost').hostname,
-  );
+  await signIn(page, { requireSpend: true });
   const answer = [
     '## Requirements',
     'Deliver every event at least once to each subscribed HTTPS endpoint, retry with backoff for 3 days.',
@@ -157,7 +140,7 @@ test('design answer gets AI feedback', async ({ page }) => {
     'Customers see attempts in a dashboard and can replay an event, which enqueues a new delivery.',
     '20k events/sec times 10 endpoints is 200k deliveries/sec, so we need a few hundred dispatcher workers.',
   ].join('\n');
-  await seedDraft(page, 'oaiprep:design:design-webhooks', answer);
+  await seedDesign(page, 'design-webhooks', { notes: answer, diagram: [] });
   await page.goto('/design/design-webhooks');
   await page.locator('[data-id="grade-design"]').click();
   await expect(page.locator('[data-id="feedback"] .verdict-label')).toBeVisible(
@@ -174,6 +157,7 @@ test.describe('python', () => {
   test('switching to Python shows the Python starter and remembers it', async ({
     page,
   }) => {
+    await signIn(page);
     const errors = trackErrors(page);
     await page.goto('/coding/kv-serialize');
     await page.locator('[data-id="lang-python"]').click();
@@ -188,13 +172,11 @@ test.describe('python', () => {
   });
 
   test('reference solution passes every test in Pyodide', async ({ page }) => {
+    await signIn(page);
     const { codingQuestions: all } = await import('../../shared/questions');
     const q = all.find((x) => x.id === 'kv-serialize')!;
     const total = q.parts.reduce((n, p) => n + p.tests.length, 0);
-    await seedDraft(page, 'oaiprep:code:kv-serialize:py', q.python!.solution);
-    await page.evaluate(() =>
-      localStorage.setItem('oaiprep:language', 'python'),
-    );
+    await seedCode(page, 'kv-serialize', q.python!.solution, 'python');
     const errors = trackErrors(page);
     await page.goto('/coding/kv-serialize');
     await page.locator('[data-id="run-tests"]').click();
@@ -208,13 +190,12 @@ test.describe('python', () => {
   test('print goes to the console, errors name the line, loops are stopped', async ({
     page,
   }) => {
-    await seedDraft(
+    await signIn(page);
+    await seedCode(
       page,
-      'oaiprep:code:kv-serialize:py',
+      'kv-serialize',
       'print("hello from python")\n\ndef serialize(d):\n    return 1 / 0\n\ndef deserialize(s):\n    return {}\n',
-    );
-    await page.evaluate(() =>
-      localStorage.setItem('oaiprep:language', 'python'),
+      'python',
     );
     await page.goto('/coding/kv-serialize');
     await page.locator('[data-id="run-tests"]').click();
@@ -241,10 +222,8 @@ test.describe('python', () => {
   });
 
   test('syntax errors are reported', async ({ page }) => {
-    await seedDraft(page, 'oaiprep:code:kv-serialize:py', 'def serialize(:\n');
-    await page.evaluate(() =>
-      localStorage.setItem('oaiprep:language', 'python'),
-    );
+    await signIn(page);
+    await seedCode(page, 'kv-serialize', 'def serialize(:\n', 'python');
     await page.goto('/coding/kv-serialize');
     await page.locator('[data-id="run-tests"]').click();
     await expect(page.locator('.compile-error')).toContainText('SyntaxError', {

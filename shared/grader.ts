@@ -60,6 +60,25 @@ export const gradeSchema = z.object({
 });
 export type Grade = z.infer<typeof gradeSchema>;
 
+/** A Grade as stored in the DB: the parsed (normalized) shape, no transforms. */
+export const storedGradeSchema = z.object({
+  verdict: gradeSchema.shape.verdict,
+  score: z.number().min(1).max(10),
+  summary: z.string(),
+  requirements: z.array(
+    z.object({
+      id: z.string().optional(),
+      requirement: z.string().optional(),
+      status,
+      note: z.string(),
+    }),
+  ),
+  rubric: z.array(z.object({ id: z.string(), status, note: z.string() })),
+  strengths: z.array(z.string()),
+  improvements: z.array(z.string()),
+  followUps: z.array(z.string()),
+}) satisfies z.ZodType<Grade>;
+
 export const verdictLabels: Record<Grade['verdict'], string> = {
   strong_hire: 'Strong hire',
   hire: 'Hire',

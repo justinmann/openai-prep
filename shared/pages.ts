@@ -1,11 +1,11 @@
 import { definePage, definePages } from 'ugly-app/shared';
 
-// Home lists every question. Coding runs entirely in the browser, so it is
-// public; design grading calls the AI billed to the signed-in user, so it
-// requires sign-in (the framework shows its login popup).
+// Everything requires sign-in: drafts, test progress, whiteboards and grades
+// are stored per user on the server so they follow you between browsers, and
+// design grading is billed to the signed-in user.
 export const pages = definePages({
-  '': definePage<{}>({ auth: false }),
-  'coding/:id': definePage<{ id: string }>({ auth: false }),
+  '': definePage<{}>({ auth: true }),
+  'coding/:id': definePage<{ id: string }>({ auth: true }),
   'design/:id': definePage<{ id: string }>({ auth: true }),
 });
 

@@ -1,26 +1,32 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { codingQuestions, designQuestions } from '../../shared/questions';
-import { verdictLabels } from '../../shared/grader';
+import { verdictLabels, type Grade } from '../../shared/grader';
+import { importLocalOnce, useTypedApp } from '../progress';
 import { Link } from '../router';
-import { codingProgress, gradeHistory, langKey } from '../storage';
+
+interface Run {
+  passed: number;
+  total: number;
+}
+interface Progress {
+  /** questionId → best runs (TypeScript and/or Python). */
+  coding: Map<string, Run[]>;
+  grades: Map<string, { verdict: Grade['verdict']; score: number }>;
+}
 
 function CodingBadge({
-  id,
+  runs,
   total,
 }: {
-  id: string;
+  runs: Run[] | undefined;
   total: number;
 }): React.ReactElement | null {
   // Best of TypeScript and Python.
-  const runs = [
-    codingProgress.get(id),
-    codingProgress.get(langKey(id, 'python')),
-  ]
-    .filter((x) => x !== null)
-    .sort((a, b) => b.passed - a.passed);
-  const p = runs[0];
+  const p = [...(runs ?? [])].sort((a, b) => b.passed - a.passed)[0];
   if (!p) return null;
-  const solved = runs.some((r) => r.passed === r.total && r.total === total);
+  const solved = (runs ?? []).some(
+    (r) => r.passed === r.total && r.total === total,
+  );
   return (
     <span className={`badge ${solved ? 'badge-pass' : 'badge-partial'}`}>
       {solved ? 'Solved' : `${p.passed}/${p.total}`}
@@ -28,19 +34,54 @@ function CodingBadge({
   );
 }
 
-function DesignBadge({ id }: { id: string }): React.ReactElement | null {
-  const last = gradeHistory.get(id)[0];
+function DesignBadge({
+  last,
+}: {
+  last: { verdict: Grade['verdict']; score: number } | undefined;
+}): React.ReactElement | null {
   if (!last) return null;
-  const good =
-    last.grade.verdict === 'hire' || last.grade.verdict === 'strong_hire';
+  const good = last.verdict === 'hire' || last.verdict === 'strong_hire';
   return (
     <span className={`badge ${good ? 'badge-pass' : 'badge-partial'}`}>
-      {verdictLabels[last.grade.verdict]} · {last.grade.score}/10
+      {verdictLabels[last.verdict]} · {last.score}/10
     </span>
   );
 }
 
+function useProgress(): Progress | null {
+  const { socket, userId } = useTypedApp();
+  const [progress, setProgress] = useState<Progress | null>(null);
+  useEffect(() => {
+    const run = { live: true };
+    void (async () => {
+      await importLocalOnce(socket, userId);
+      try {
+        const res = await socket.request('progressGet', {});
+        if (!run.live) return;
+        const coding = new Map<string, Run[]>();
+        for (const c of res.coding)
+          if (c.bestPassed !== null && c.bestTotal !== null)
+            coding.set(c.questionId, [
+              ...(coding.get(c.questionId) ?? []),
+              { passed: c.bestPassed, total: c.bestTotal },
+            ]);
+        setProgress({
+          coding,
+          grades: new Map(res.latestGrades.map((g) => [g.questionId, g])),
+        });
+      } catch (err) {
+        console.error('[home] could not load progress', err);
+      }
+    })();
+    return () => {
+      run.live = false;
+    };
+  }, [socket, userId]);
+  return progress;
+}
+
 export default function HomePage(): React.ReactElement {
+  const progress = useProgress();
   return (
     <div className="home safe-area">
       <header className="home-head">
@@ -74,7 +115,10 @@ export default function HomePage(): React.ReactElement {
                   <span className={`diff diff-${q.difficulty}`}>
                     {q.difficulty}
                   </span>
-                  <CodingBadge id={q.id} total={total} />
+                  <CodingBadge
+                    runs={progress?.coding.get(q.id)}
+                    total={total}
+                  />
                 </div>
                 <h3>{q.title}</h3>
                 <p>{q.summary}</p>
@@ -104,7 +148,7 @@ export default function HomePage(): React.ReactElement {
             >
               <div className="qcard-top">
                 <span className="diff diff-design">design</span>
-                <DesignBadge id={q.id} />
+                <DesignBadge last={progress?.grades.get(q.id)} />
               </div>
               <h3>{q.title}</h3>
               <p>{q.summary}</p>
@@ -125,7 +169,8 @@ export default function HomePage(): React.ReactElement {
           Hello Interview
         </a>
         . The rest are written from commonly reported OpenAI interview topics.
-        Drafts and progress are saved in this browser.
+        Drafts, test progress, whiteboards and grades are saved to your account,
+        so you can switch browsers and pick up where you left off.
       </footer>
     </div>
   );
