@@ -138,7 +138,11 @@ test('a syntax error is reported', async ({ page }) => {
 test('design answer gets AI feedback', async ({ page }) => {
   test.setTimeout(180_000);
   const acct = await testAccount('openai-prep-design', { requireSpend: true });
-  await authenticateAs(page, acct, 'localhost');
+  await authenticateAs(
+    page,
+    acct,
+    new URL(test.info().project.use.baseURL ?? 'http://localhost').hostname,
+  );
   const answer = [
     '## Requirements',
     'Deliver every event at least once to each subscribed HTTPS endpoint, retry with backoff for 3 days.',
