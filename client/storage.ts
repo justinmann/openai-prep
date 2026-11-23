@@ -78,10 +78,31 @@ export const designDraft = {
   },
 };
 
+/** The whiteboard's Excalidraw elements, kept as raw JSON; Excalidraw's own `restore` validates them on load. */
+export const designDiagram = {
+  get: (id: string): unknown[] =>
+    readJson(
+      `diagram:${id}`,
+      (v): v is unknown[] => Array.isArray(v),
+      [],
+    ).filter(
+      (e) =>
+        typeof e === 'object' &&
+        e !== null &&
+        typeof (e as { id?: unknown }).id === 'string' &&
+        typeof (e as { type?: unknown }).type === 'string',
+    ),
+  set: (id: string, elements: readonly unknown[]) => {
+    write(`diagram:${id}`, JSON.stringify(elements));
+  },
+};
+
 export interface GradeRecord {
   at: number;
   level: Level;
   words: number;
+  /** Elements drawn on the whiteboard; absent on attempts graded before it existed. */
+  shapes?: number;
   grade: Grade;
 }
 

@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
+import type { ExcalidrawElement } from '@excalidraw/excalidraw/element/types';
+import React, { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { Button, callTextGen } from 'ugly-app/client';
 import {
   GRADER_MODEL,
@@ -10,13 +11,23 @@ import {
   type CoverageStatus,
   type Level,
 } from '../../shared/grader';
+import { countDrawn, diagramOutline } from '../../shared/diagram';
 import { findDesign } from '../../shared/questions';
 import type { DesignQuestion } from '../../shared/questions';
 import { CodeEditor } from '../components/CodeEditor';
 import { Markdown } from '../components/Markdown';
 import { TopBar } from '../components/TopBar';
 import { Link } from '../router';
-import { designDraft, gradeHistory, prefs, type GradeRecord } from '../storage';
+import {
+  designDiagram,
+  designDraft,
+  gradeHistory,
+  prefs,
+  type GradeRecord,
+} from '../storage';
+
+const loadWhiteboard = () => import('../components/Whiteboard');
+const Whiteboard = lazy(loadWhiteboard);
 
 const STATUS_LABEL: Record<CoverageStatus, string> = {
   met: 'Met',
@@ -57,6 +68,13 @@ export default function DesignPage({ id }: { id: string }): React.ReactElement {
 
 function DesignWorkspace({ q }: { q: DesignQuestion }): React.ReactElement {
   const [text, setText] = useState(() => designDraft.get(q.id) ?? TEMPLATE);
+  const [savedDiagram] = useState(() => designDiagram.get(q.id));
+  const diagram = useRef<readonly ExcalidrawElement[] | null>(null);
+  const [shapes, setShapes] = useState(() =>
+    countDrawn(savedDiagram as ExcalidrawElement[]),
+  );
+  const [notesOpen, setNotesOpen] = useState(true);
+  const saveDiagram = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [level, setLevel] = useState<Level>(() => prefs.level());
   const [history, setHistory] = useState<GradeRecord[]>(() =>
     gradeHistory.get(q.id),
@@ -77,15 +95,34 @@ function DesignWorkspace({ q }: { q: DesignQuestion }): React.ReactElement {
       clearTimeout(t);
     };
   }, [text, q.id]);
-  useEffect(() => () => abort.current?.abort(), []);
+  useEffect(
+    () => () => {
+      abort.current?.abort();
+      if (saveDiagram.current) {
+        clearTimeout(saveDiagram.current);
+        if (diagram.current) designDiagram.set(q.id, diagram.current);
+      }
+    },
+    [q.id],
+  );
+
+  const onDiagramChange = (elements: readonly ExcalidrawElement[]) => {
+    diagram.current = elements;
+    setShapes(countDrawn(elements));
+    if (saveDiagram.current) clearTimeout(saveDiagram.current);
+    saveDiagram.current = setTimeout(() => {
+      saveDiagram.current = null;
+      designDiagram.set(q.id, elements);
+    }, 400);
+  };
 
   const words = countWords(text) - countWords(TEMPLATE);
 
   const grade = async () => {
     if (grading) return;
-    if (words < 80) {
+    if (shapes < 3 && words < 80) {
       setError(
-        'Write a bit more first: the grader needs at least ~80 words of design to judge.',
+        'Draw your design on the board, or write at least ~80 words of notes, before asking for feedback.',
       );
       return;
     }
@@ -93,10 +130,25 @@ function DesignWorkspace({ q }: { q: DesignQuestion }): React.ReactElement {
     setGrading(true);
     abort.current = new AbortController();
     try {
+      const board = await loadWhiteboard();
+      const elements = diagram.current ?? board.restoreSaved(savedDiagram);
+      const outline = diagramOutline(elements);
+      let imageDataUrl: string | undefined;
+      if (outline) {
+        try {
+          imageDataUrl = await board.exportDiagramPng(elements);
+        } catch (err) {
+          // The outline still carries the topology; grade without the picture.
+          console.error('[design] diagram export failed', err);
+        }
+      }
       const content = await callTextGen(
         {
           model: GRADER_MODEL,
-          messages: buildGraderMessages(q, text, level),
+          messages: buildGraderMessages(q, text, level, {
+            outline,
+            ...(imageDataUrl ? { imageDataUrl } : {}),
+          }),
           options: {
             maxTokens: 6000,
             temperature: 0.2,
@@ -113,7 +165,8 @@ function DesignWorkspace({ q }: { q: DesignQuestion }): React.ReactElement {
       const next = gradeHistory.add(q.id, {
         at: Date.now(),
         level,
-        words,
+        words: Math.max(0, words),
+        shapes,
         grade: g,
       });
       setHistory(next);
@@ -228,8 +281,8 @@ function DesignWorkspace({ q }: { q: DesignQuestion }): React.ReactElement {
             </div>
           ) : !rec ? (
             <div className="prompt empty">
-              No feedback yet. Write your design on the right, then press Get
-              feedback.
+              No feedback yet. Draw your design on the board, add notes
+              underneath, then press Get feedback.
             </div>
           ) : (
             <Feedback
@@ -243,20 +296,50 @@ function DesignWorkspace({ q }: { q: DesignQuestion }): React.ReactElement {
         </aside>
 
         <main className="pane pane-right">
-          <div className="editor-wrap">
-            <CodeEditor
-              value={text}
-              onChange={setText}
-              language="markdown"
-              onSubmit={() => void grade()}
-              data-id="design-editor"
-              aria-label="Design answer editor"
-            />
+          <div className="board-wrap">
+            <Suspense
+              fallback={
+                <div className="board-loading">Loading whiteboard…</div>
+              }
+            >
+              <Whiteboard initial={savedDiagram} onChange={onDiagramChange} />
+            </Suspense>
+          </div>
+          <div className={`notes ${notesOpen ? '' : 'notes-closed'}`}>
+            <div className="notes-head">
+              <span className="small muted">
+                Notes: numbers, API, data model, trade-offs (what you would say
+                out loud)
+              </span>
+              <Button
+                size="sm"
+                variant="ghost"
+                data-id="toggle-notes"
+                aria-label={notesOpen ? 'Hide notes' : 'Show notes'}
+                onClick={() => {
+                  setNotesOpen((o) => !o);
+                }}
+              >
+                {notesOpen ? 'Hide' : 'Show'}
+              </Button>
+            </div>
+            {notesOpen && (
+              <div className="editor-wrap">
+                <CodeEditor
+                  value={text}
+                  onChange={setText}
+                  language="markdown"
+                  onSubmit={() => void grade()}
+                  data-id="design-editor"
+                  aria-label="Design notes editor"
+                />
+              </div>
+            )}
           </div>
           <div className="statusbar">
             <span className="muted small">
-              {Math.max(0, words)} words · graded as {levels[level]} · saved in
-              this browser
+              {shapes} on the board · {Math.max(0, words)} words · graded as{' '}
+              {levels[level]} · saved in this browser
             </span>
             {error && <span className="error small">{error}</span>}
           </div>
@@ -290,8 +373,9 @@ function Feedback({
         <div>
           <div className="verdict-label">{verdictLabels[g.verdict]}</div>
           <div className="muted small">
-            as {levels[rec.level]} · {rec.words} words ·{' '}
-            {new Date(rec.at).toLocaleString()}
+            as {levels[rec.level]} ·{' '}
+            {rec.shapes !== undefined ? `${rec.shapes} on the board · ` : ''}
+            {rec.words} words · {new Date(rec.at).toLocaleString()}
           </div>
         </div>
       </div>

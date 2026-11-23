@@ -15,6 +15,31 @@ describe('grader', () => {
     expect(user!.content).toContain('<answer>\nMY ANSWER\n</answer>');
   });
 
+  it('sends the whiteboard outline and image alongside the notes', () => {
+    const [system, user] = buildGraderMessages(q, 'MY NOTES', 'L5', {
+      outline: '- "API" → "Queue"',
+      imageDataUrl: 'data:image/png;base64,AAAA',
+    });
+    expect(system!.content).toContain('Excalidraw whiteboard');
+    expect(Array.isArray(user!.content)).toBe(true);
+    const parts = user!.content as Exclude<typeof user.content, string>;
+    const text = parts[0]!.type === 'text' ? parts[0]!.text : '';
+    expect(text).toContain('<diagram>\n- "API" → "Queue"\n</diagram>');
+    expect(text).toContain('<answer>\nMY NOTES\n</answer>');
+    expect(parts[1]).toEqual({
+      type: 'image_url',
+      image_url: { url: 'data:image/png;base64,AAAA' },
+    });
+  });
+
+  it('falls back to text-only grading when nothing was drawn', () => {
+    const [system, user] = buildGraderMessages(q, 'MY ANSWER', 'L5', {
+      outline: '',
+    });
+    expect(system!.content).toContain('wrote their answer as text');
+    expect(user!.content).toContain('CANDIDATE ANSWER:');
+  });
+
   it('parses a real model reply (rubric items used "note")', () => {
     const raw = readFileSync(
       new URL('./fixtures/grader-reply-webhooks.txt', import.meta.url),

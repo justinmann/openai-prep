@@ -522,6 +522,45 @@ a {
   padding-bottom: max(6px, var(--safe-area-inset-bottom));
 }
 
+/* design whiteboard + notes */
+.board-wrap {
+  flex: 1;
+  min-height: 280px;
+  position: relative;
+}
+.whiteboard {
+  position: absolute;
+  inset: 0;
+}
+.board-loading {
+  padding: 20px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.notes {
+  height: 34%;
+  min-height: 150px;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--line);
+}
+.notes-closed {
+  height: auto;
+  min-height: 0;
+}
+.notes-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 8px 4px 14px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+}
+.notes .editor-wrap {
+  min-height: 0;
+}
+
 /* feedback */
 .verdict {
   display: flex;
