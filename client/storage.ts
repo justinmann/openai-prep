@@ -22,7 +22,11 @@ function write(key: string, value: string | null): void {
   }
 }
 
-function readJson<T>(key: string, isValid: (v: unknown) => v is T, fallback: T): T {
+function readJson<T>(
+  key: string,
+  isValid: (v: unknown) => v is T,
+  fallback: T,
+): T {
   const raw = read(key);
   if (raw === null) return fallback;
   try {
@@ -35,8 +39,12 @@ function readJson<T>(key: string, isValid: (v: unknown) => v is T, fallback: T):
 
 export const codeDraft = {
   get: (id: string) => read(`code:${id}`),
-  set: (id: string, code: string) => { write(`code:${id}`, code); },
-  clear: (id: string) => { write(`code:${id}`, null); },
+  set: (id: string, code: string) => {
+    write(`code:${id}`, code);
+  },
+  clear: (id: string) => {
+    write(`code:${id}`, null);
+  },
 };
 
 export interface CodingProgress {
@@ -48,7 +56,12 @@ const isProgress = (v: unknown): v is CodingProgress =>
   typeof v === 'object' && v !== null && 'passed' in v && 'total' in v;
 
 export const codingProgress = {
-  get: (id: string): CodingProgress | null => readJson(`progress:${id}`, (v): v is CodingProgress | null => v === null || isProgress(v), null),
+  get: (id: string): CodingProgress | null =>
+    readJson(
+      `progress:${id}`,
+      (v): v is CodingProgress | null => v === null || isProgress(v),
+      null,
+    ),
   /** Keeps the best run, so a broken refactor does not erase a solve. */
   record: (id: string, p: CodingProgress) => {
     const prev = codingProgress.get(id);
@@ -59,7 +72,9 @@ export const codingProgress = {
 
 export const designDraft = {
   get: (id: string) => read(`design:${id}`),
-  set: (id: string, text: string) => { write(`design:${id}`, text); },
+  set: (id: string, text: string) => {
+    write(`design:${id}`, text);
+  },
 };
 
 export interface GradeRecord {
@@ -85,5 +100,7 @@ export const prefs = {
     const v = read('level');
     return v === 'L4' || v === 'L5' || v === 'L6' ? v : 'L5';
   },
-  setLevel: (l: Level) => { write('level', l); },
+  setLevel: (l: Level) => {
+    write('level', l);
+  },
 };

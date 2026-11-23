@@ -14,7 +14,6 @@ import { defineCollections } from 'ugly-app/shared';
 //   trackKeys    – fields used as NATS routing keys for scoped trackDocs subscriptions
 //
 // After adding a collection, run: npm run db:schema-gen && npm run db:migrate
-export const collections = defineCollections({
-});
+export const collections = defineCollections({});
 
 export type AppCollections = typeof collections;

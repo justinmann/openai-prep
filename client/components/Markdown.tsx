@@ -13,8 +13,10 @@ function inline(text: string, keyBase: string): React.ReactNode[] {
   while ((m = re.exec(text))) {
     if (m.index > last) out.push(text.slice(last, m.index));
     const tok = m[0];
-    if (tok.startsWith('`')) out.push(<code key={`${keyBase}-${i++}`}>{tok.slice(1, -1)}</code>);
-    else out.push(<strong key={`${keyBase}-${i++}`}>{tok.slice(2, -2)}</strong>);
+    if (tok.startsWith('`'))
+      out.push(<code key={`${keyBase}-${i++}`}>{tok.slice(1, -1)}</code>);
+    else
+      out.push(<strong key={`${keyBase}-${i++}`}>{tok.slice(2, -2)}</strong>);
     last = m.index + tok.length;
   }
   if (last < text.length) out.push(text.slice(last));
@@ -31,7 +33,8 @@ export function Markdown({ text }: { text: string }): React.ReactElement {
     if (line.startsWith('```')) {
       const body: string[] = [];
       i++;
-      while (i < lines.length && !lines[i]!.startsWith('```')) body.push(lines[i++]!);
+      while (i < lines.length && !lines[i]!.startsWith('```'))
+        body.push(lines[i++]!);
       i++;
       blocks.push(
         <pre key={k++} className="md-pre">
@@ -43,7 +46,8 @@ export function Markdown({ text }: { text: string }): React.ReactElement {
       i++;
     } else if (/^\s*- /.test(line)) {
       const items: string[] = [];
-      while (i < lines.length && /^\s*- /.test(lines[i]!)) items.push(lines[i++]!.replace(/^\s*- /, ''));
+      while (i < lines.length && /^\s*- /.test(lines[i]!))
+        items.push(lines[i++]!.replace(/^\s*- /, ''));
       const base = k++;
       blocks.push(
         <ul key={base}>

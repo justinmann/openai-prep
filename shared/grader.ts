@@ -17,7 +17,13 @@ const status = z.enum(['met', 'partial', 'missing']);
 export type CoverageStatus = z.infer<typeof status>;
 
 export const gradeSchema = z.object({
-  verdict: z.enum(['strong_hire', 'hire', 'lean_hire', 'lean_no_hire', 'no_hire']),
+  verdict: z.enum([
+    'strong_hire',
+    'hire',
+    'lean_hire',
+    'lean_no_hire',
+    'no_hire',
+  ]),
   score: z.number().min(1).max(10),
   summary: z.string(),
   // `id` is "R1".. as numbered in the prompt; older replies echoed the text.
@@ -32,8 +38,17 @@ export const gradeSchema = z.object({
   // Models sometimes swap "note" and "feedback"; accept either.
   rubric: z.array(
     z
-      .object({ id: z.string(), status, note: z.string().optional(), feedback: z.string().optional() })
-      .transform(({ id, status: s, note, feedback }) => ({ id, status: s, note: note ?? feedback ?? '' })),
+      .object({
+        id: z.string(),
+        status,
+        note: z.string().optional(),
+        feedback: z.string().optional(),
+      })
+      .transform(({ id, status: s, note, feedback }) => ({
+        id,
+        status: s,
+        note: note ?? feedback ?? '',
+      })),
   ),
   strengths: z.array(z.string()),
   improvements: z.array(z.string()),
@@ -52,10 +67,15 @@ export const verdictLabels: Record<Grade['verdict'], string> = {
 const list = (items: string[]) => items.map((s) => `- ${s}`).join('\n');
 
 /** Functional then non-functional, numbered R1.. for the grader. */
-export function allRequirements(q: DesignQuestion): { id: string; text: string; kind: 'functional' | 'non-functional' }[] {
+export function allRequirements(
+  q: DesignQuestion,
+): { id: string; text: string; kind: 'functional' | 'non-functional' }[] {
   return [
     ...q.functional.map((text) => ({ text, kind: 'functional' as const })),
-    ...q.nonFunctional.map((text) => ({ text, kind: 'non-functional' as const })),
+    ...q.nonFunctional.map((text) => ({
+      text,
+      kind: 'non-functional' as const,
+    })),
   ].map((r, i) => ({ ...r, id: `R${i + 1}` }));
 }
 
@@ -63,9 +83,14 @@ export function allRequirements(q: DesignQuestion): { id: string; text: string; 
 export function requirementCoverage(q: DesignQuestion, g: Grade) {
   return allRequirements(q).map((r) => {
     const hit = g.requirements.find(
-      (x) => x.id?.trim().toUpperCase() === r.id || x.requirement?.trim() === r.text,
+      (x) =>
+        x.id?.trim().toUpperCase() === r.id || x.requirement?.trim() === r.text,
     );
-    return { ...r, status: hit?.status ?? null, note: hit?.note ?? 'Not assessed by the grader.' };
+    return {
+      ...r,
+      status: hit?.status ?? null,
+      note: hit?.note ?? 'Not assessed by the grader.',
+    };
   });
 }
 
@@ -92,7 +117,9 @@ Include one "requirements" entry for EVERY numbered requirement (R1, R2, ... cov
 ${q.prompt}
 
 REQUIREMENTS:
-${allRequirements(q).map((r) => `- ${r.id} (${r.kind}): ${r.text}`).join('\n')}
+${allRequirements(q)
+  .map((r) => `- ${r.id} (${r.kind}): ${r.text}`)
+  .join('\n')}
 
 SCALE:
 ${list(q.scale)}

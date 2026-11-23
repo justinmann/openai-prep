@@ -179,7 +179,8 @@ const webhooks: DesignQuestion = {
     {
       id: 'requirements',
       label: 'Requirements and estimates',
-      detail: 'Delivery semantics clarified; throughput and retry-storage estimates.',
+      detail:
+        'Delivery semantics clarified; throughput and retry-storage estimates.',
     },
     {
       id: 'ingest',
@@ -214,7 +215,8 @@ const webhooks: DesignQuestion = {
     {
       id: 'observability',
       label: 'Observability and replay',
-      detail: 'Attempt log, customer-facing dashboard, manual replay, alerting.',
+      detail:
+        'Attempt log, customer-facing dashboard, manual replay, alerting.',
     },
   ],
   followUps: [
@@ -249,7 +251,8 @@ const meteringBilling: DesignQuestion = {
     {
       id: 'requirements',
       label: 'Requirements and estimates',
-      detail: 'Event volume and storage math; separates real-time view from billing of record.',
+      detail:
+        'Event volume and storage math; separates real-time view from billing of record.',
     },
     {
       id: 'capture',
@@ -278,7 +281,8 @@ const meteringBilling: DesignQuestion = {
     {
       id: 'storage',
       label: 'Storage choices',
-      detail: 'Raw events in cheap columnar/object storage, aggregates in an OLAP or KV store, with reasons.',
+      detail:
+        'Raw events in cheap columnar/object storage, aggregates in an OLAP or KV store, with reasons.',
     },
     {
       id: 'tradeoffs',
@@ -311,7 +315,10 @@ const codeSandbox: DesignQuestion = {
     'Cold start for a new session under ~1-2 s.',
     'CPU, memory, disk and wall-time limits per execution.',
   ],
-  scale: ['~1M sessions a day, ~50k concurrent.', 'Executions mostly short; some run minutes.'],
+  scale: [
+    '~1M sessions a day, ~50k concurrent.',
+    'Executions mostly short; some run minutes.',
+  ],
   rubric: [
     {
       id: 'requirements',
@@ -327,7 +334,8 @@ const codeSandbox: DesignQuestion = {
     {
       id: 'network',
       label: 'Network and data exfiltration',
-      detail: 'Egress denied or proxied with allowlists; no metadata endpoint access; per-session network namespace.',
+      detail:
+        'Egress denied or proxied with allowlists; no metadata endpoint access; per-session network namespace.',
     },
     {
       id: 'lifecycle',
@@ -338,12 +346,14 @@ const codeSandbox: DesignQuestion = {
     {
       id: 'limits',
       label: 'Resource limits',
-      detail: 'cgroups for CPU/memory, disk quotas, timeouts, killing runaway processes, output size caps.',
+      detail:
+        'cgroups for CPU/memory, disk quotas, timeouts, killing runaway processes, output size caps.',
     },
     {
       id: 'files',
       label: 'File handling',
-      detail: 'Uploads/outputs via object storage with scoped, expiring URLs; scanning; size limits.',
+      detail:
+        'Uploads/outputs via object storage with scoped, expiring URLs; scanning; size limits.',
     },
     {
       id: 'tradeoffs',
@@ -378,7 +388,10 @@ const cicd: DesignQuestion = {
     'A worker crash never loses a pipeline; jobs are retried elsewhere.',
     'Efficient fleet usage (autoscaling, caching).',
   ],
-  scale: ['~5k engineers, ~20k pipelines a day, ~500k jobs a day.', 'Peak 3x average during work hours.'],
+  scale: [
+    '~5k engineers, ~20k pipelines a day, ~500k jobs a day.',
+    'Peak 3x average during work hours.',
+  ],
   rubric: [
     {
       id: 'requirements',
@@ -400,12 +413,14 @@ const cicd: DesignQuestion = {
     {
       id: 'logs-artifacts',
       label: 'Logs and artifacts',
-      detail: 'Live log streaming via a pub/sub fan-out, chunks persisted to object storage; artifact store; build caches.',
+      detail:
+        'Live log streaming via a pub/sub fan-out, chunks persisted to object storage; artifact store; build caches.',
     },
     {
       id: 'deploy',
       label: 'Deployment safety',
-      detail: 'Approvals, progressive rollout or canaries, health checks, automated rollback.',
+      detail:
+        'Approvals, progressive rollout or canaries, health checks, automated rollback.',
     },
     {
       id: 'tradeoffs',
@@ -440,7 +455,10 @@ const gpuScheduler: DesignQuestion = {
     'Topology awareness: a job prefers GPUs in the same rack / network domain.',
     'Scheduler itself is highly available.',
   ],
-  scale: ['~25k GPUs, ~3k nodes; hundreds of queued jobs.', 'GPU or node failures several times a day at this size.'],
+  scale: [
+    '~25k GPUs, ~3k nodes; hundreds of queued jobs.',
+    'GPU or node failures several times a day at this size.',
+  ],
   rubric: [
     {
       id: 'requirements',
@@ -450,7 +468,8 @@ const gpuScheduler: DesignQuestion = {
     {
       id: 'state',
       label: 'Cluster state and API',
-      detail: 'Node inventory with health and topology, job store, submission API; scheduler as a control loop over desired vs actual state.',
+      detail:
+        'Node inventory with health and topology, job store, submission API; scheduler as a control loop over desired vs actual state.',
     },
     {
       id: 'algorithm',
@@ -461,7 +480,8 @@ const gpuScheduler: DesignQuestion = {
     {
       id: 'fairness',
       label: 'Quotas, fairness, preemption',
-      detail: 'Team quotas, borrowing idle capacity, preemption policy with grace period for checkpointing.',
+      detail:
+        'Team quotas, borrowing idle capacity, preemption policy with grace period for checkpointing.',
     },
     {
       id: 'faults',
@@ -472,7 +492,8 @@ const gpuScheduler: DesignQuestion = {
     {
       id: 'tradeoffs',
       label: 'Trade-offs',
-      detail: 'Utilization vs wait time, preemption cost, simplicity vs optimality.',
+      detail:
+        'Utilization vs wait time, preemption cost, simplicity vs optimality.',
     },
   ],
   followUps: [
@@ -506,7 +527,8 @@ const crawlerDesign: DesignQuestion = {
     {
       id: 'requirements',
       label: 'Requirements and estimates',
-      detail: 'Pages/sec, bandwidth, storage per month; uses them to size the fleet.',
+      detail:
+        'Pages/sec, bandwidth, storage per month; uses them to size the fleet.',
     },
     {
       id: 'frontier',
@@ -517,27 +539,32 @@ const crawlerDesign: DesignQuestion = {
     {
       id: 'dedupe',
       label: 'Deduplication',
-      detail: 'URL normalization + seen-set (Bloom filter or KV); content hash for exact dupes; SimHash/MinHash for near-dupes.',
+      detail:
+        'URL normalization + seen-set (Bloom filter or KV); content hash for exact dupes; SimHash/MinHash for near-dupes.',
     },
     {
       id: 'fetch',
       label: 'Fetching and politeness',
-      detail: 'robots.txt caching, DNS caching, timeouts, crawl-delay, user agent, handling traps (infinite calendars, session ids).',
+      detail:
+        'robots.txt caching, DNS caching, timeouts, crawl-delay, user agent, handling traps (infinite calendars, session ids).',
     },
     {
       id: 'storage',
       label: 'Storage and processing',
-      detail: 'Raw pages to object storage (WARC-like), metadata DB, extraction pipeline decoupled by a queue.',
+      detail:
+        'Raw pages to object storage (WARC-like), metadata DB, extraction pipeline decoupled by a queue.',
     },
     {
       id: 'recrawl',
       label: 'Re-crawl and freshness',
-      detail: 'Change-rate estimation, conditional GETs (ETag/If-Modified-Since), scheduling.',
+      detail:
+        'Change-rate estimation, conditional GETs (ETag/If-Modified-Since), scheduling.',
     },
     {
       id: 'tradeoffs',
       label: 'Trade-offs',
-      detail: 'Freshness vs coverage, exact vs probabilistic dedupe, BFS vs priority.',
+      detail:
+        'Freshness vs coverage, exact vs probabilistic dedupe, BFS vs priority.',
     },
   ],
   followUps: [

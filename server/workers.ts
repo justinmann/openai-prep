@@ -26,12 +26,10 @@ import { pages } from '../shared/pages';
 // requests, so `Partial<RequestHandlers<typeof requests>>` resolves to `{}` and
 // trips no-generated-empty-object-type. `createWorkersApp` type-checks this
 // argument, so a handler that does not match its request is still caught.
-const requestHandlers = {
-};
+const requestHandlers = {};
 
 // Cron handlers run on Cloudflare Cron Triggers (matches shared/cron.ts).
-const cronHandlers = {
-};
+const cronHandlers = {};
 
 // The registry MUST carry `pages` — `createWorkersApp` reads its route table
 // from `registry.pages` (there is no Workers `configurator.setPages`).

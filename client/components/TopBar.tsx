@@ -7,8 +7,12 @@ function Timer(): React.ReactElement {
   const [start, setStart] = useState(() => Date.now());
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
-    const t = setInterval(() => { setNow(Date.now()); }, 1000);
-    return () => { clearInterval(t); };
+    const t = setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
+    return () => {
+      clearInterval(t);
+    };
   }, []);
   const s = Math.floor((now - start) / 1000);
   const mm = String(Math.floor(s / 60)).padStart(2, '0');
@@ -34,7 +38,13 @@ function Timer(): React.ReactElement {
   );
 }
 
-export function TopBar({ title, children }: { title: string; children?: React.ReactNode }): React.ReactElement {
+export function TopBar({
+  title,
+  children,
+}: {
+  title: string;
+  children?: React.ReactNode;
+}): React.ReactElement {
   return (
     <div className="topbar">
       <Link to="" params={{}} className="back">

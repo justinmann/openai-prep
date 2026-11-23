@@ -3,17 +3,21 @@ import { javascript } from '@codemirror/lang-javascript';
 import { markdown } from '@codemirror/lang-markdown';
 import { EditorState } from '@codemirror/state';
 import { oneDark } from '@codemirror/theme-one-dark';
-import { EditorView, keymap, placeholder as cmPlaceholder } from '@codemirror/view';
+import {
+  EditorView,
+  keymap,
+  placeholder as cmPlaceholder,
+} from '@codemirror/view';
 import { basicSetup } from 'codemirror';
 import React, { useEffect, useRef } from 'react';
 
 interface Props {
-  value: string;
-  onChange: (v: string) => void;
-  language: 'typescript' | 'markdown';
+  'value': string;
+  'onChange': (v: string) => void;
+  'language': 'typescript' | 'markdown';
   /** Cmd/Ctrl+Enter */
-  onSubmit?: () => void;
-  placeholder?: string;
+  'onSubmit'?: () => void;
+  'placeholder'?: string;
   'data-id': string;
   'aria-label': string;
 }
@@ -57,7 +61,9 @@ export function CodeEditor(props: Props): React.ReactElement {
           EditorView.updateListener.of((u) => {
             if (u.docChanged) latest.current.onChange(u.state.doc.toString());
           }),
-          EditorView.contentAttributes.of({ 'aria-label': props['aria-label'] }),
+          EditorView.contentAttributes.of({
+            'aria-label': props['aria-label'],
+          }),
         ],
       }),
     });
@@ -74,7 +80,8 @@ export function CodeEditor(props: Props): React.ReactElement {
     const v = view.current;
     if (!v) return;
     const cur = v.state.doc.toString();
-    if (cur !== props.value) v.dispatch({ changes: { from: 0, to: cur.length, insert: props.value } });
+    if (cur !== props.value)
+      v.dispatch({ changes: { from: 0, to: cur.length, insert: props.value } });
   }, [props.value]);
 
   return <div ref={host} className="editor" data-id={props['data-id']} />;

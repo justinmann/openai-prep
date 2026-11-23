@@ -99,7 +99,11 @@ describe('design questions', () => {
 
 describe('imports', () => {
   const fakeLodash = async (spec: string) => {
-    if (spec === 'lodash-es') return { chunk: (a: number[], n: number) => [a.slice(0, n), a.slice(n)], default: { name: 'lodash' } };
+    if (spec === 'lodash-es')
+      return {
+        chunk: (a: number[], n: number) => [a.slice(0, n), a.slice(n)],
+        default: { name: 'lodash' },
+      };
     throw new Error('404 not found');
   };
 
@@ -109,7 +113,13 @@ describe('imports', () => {
     await runAll(
       transpile(ts),
       [{ name: 't', code }],
-      { onLog: () => {}, onResult: (r) => results.push(r), onLoading: (s) => { loading = s; } },
+      {
+        onLog: () => {},
+        onResult: (r) => results.push(r),
+        onLoading: (s) => {
+          loading = s;
+        },
+      },
       4000,
       fakeLodash,
     );
@@ -118,18 +128,31 @@ describe('imports', () => {
 
   it('finds imports in transpiled code', async () => {
     const { findImports } = await import('../../shared/runner/harness');
-    expect(findImports(transpile("import { a } from 'x';\nimport * as y from '@s/y@1';\nimport type { T } from 'types-only';\nconst z: T = [a, y];"))).toEqual(['x', '@s/y@1']);
+    expect(
+      findImports(
+        transpile(
+          "import { a } from 'x';\nimport * as y from '@s/y@1';\nimport type { T } from 'types-only';\nconst z: T = [a, y];",
+        ),
+      ),
+    ).toEqual(['x', '@s/y@1']);
   });
 
   it('supports named, default and namespace imports', async () => {
-    const ts = "import { chunk } from 'lodash-es';\nimport _ from 'lodash-es';\nimport * as L from 'lodash-es';\nfunction f() { return [chunk([1, 2, 3], 2), _.name, typeof L.chunk]; }";
-    const { result, loading } = await runWith(ts, "assertEqual(f(), [[[1, 2], [3]], 'lodash', 'function']);");
+    const ts =
+      "import { chunk } from 'lodash-es';\nimport _ from 'lodash-es';\nimport * as L from 'lodash-es';\nfunction f() { return [chunk([1, 2, 3], 2), _.name, typeof L.chunk]; }";
+    const { result, loading } = await runWith(
+      ts,
+      "assertEqual(f(), [[[1, 2], [3]], 'lodash', 'function']);",
+    );
     expect(loading).toEqual(['lodash-es']);
     expect(result.status).toBe('pass');
   });
 
   it('a package that fails to load fails the run with its name', async () => {
-    const { result } = await runWith("import x from 'nope-pkg';\nconsole.log(x);", 'assert(true)');
+    const { result } = await runWith(
+      "import x from 'nope-pkg';\nconsole.log(x);",
+      'assert(true)',
+    );
     expect(result.status).toBe('fail');
     expect(result.message).toContain('Could not import "nope-pkg"');
   });
@@ -137,7 +160,9 @@ describe('imports', () => {
   it('maps specifiers to esm.sh and rejects local paths', async () => {
     const { moduleUrl } = await import('../../shared/runner/harness');
     expect(moduleUrl('lodash-es')).toBe('https://esm.sh/lodash-es');
-    expect(moduleUrl('https://cdn.example.com/m.js')).toBe('https://cdn.example.com/m.js');
+    expect(moduleUrl('https://cdn.example.com/m.js')).toBe(
+      'https://cdn.example.com/m.js',
+    );
     expect(() => moduleUrl('./util')).toThrow(/no local files/);
     expect(() => moduleUrl('node:fs')).toThrow(/built-ins/);
   });

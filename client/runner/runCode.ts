@@ -40,19 +40,24 @@ export function runCode(
     done: false,
     compileError: null,
   };
-  const emit = () => { onUpdate({ ...state, results: [...state.results], logs: [...state.logs] }); };
+  const emit = () => {
+    onUpdate({ ...state, results: [...state.results], logs: [...state.logs] });
+  };
 
   let js: string;
   try {
     js = transpile(ts);
   } catch (err) {
-    state.compileError = err instanceof CompileError ? err.message : String(err);
+    state.compileError =
+      err instanceof CompileError ? err.message : String(err);
     state.done = true;
     emit();
     return { cancel: () => undefined };
   }
 
-  const worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
+  const worker = new Worker(new URL('./worker.ts', import.meta.url), {
+    type: 'module',
+  });
   let watchdog: ReturnType<typeof setTimeout> | undefined;
 
   const finish = (reason?: string) => {
@@ -61,8 +66,15 @@ export function runCode(
     if (reason !== undefined) {
       state.results = state.results.map((r, index) => {
         if (r) return r;
-        if (state.loading) return { index, status: 'fail', message: reason, ms: 0 };
-        if (index === state.running) return { index, status: 'timeout', message: reason, ms: SYNC_HANG_MS };
+        if (state.loading)
+          return { index, status: 'fail', message: reason, ms: 0 };
+        if (index === state.running)
+          return {
+            index,
+            status: 'timeout',
+            message: reason,
+            ms: SYNC_HANG_MS,
+          };
         return { index, status: 'skipped', message: 'Not run', ms: 0 };
       });
     }
@@ -72,16 +84,24 @@ export function runCode(
     emit();
   };
 
-  const arm = (ms = SYNC_HANG_MS, reason = `No progress for ${SYNC_HANG_MS / 1000} s. Infinite loop? The run was stopped.`) => {
+  const arm = (
+    ms = SYNC_HANG_MS,
+    reason = `No progress for ${SYNC_HANG_MS / 1000} s. Infinite loop? The run was stopped.`,
+  ) => {
     clearTimeout(watchdog);
-    watchdog = setTimeout(() => { finish(reason); }, ms);
+    watchdog = setTimeout(() => {
+      finish(reason);
+    }, ms);
   };
 
   worker.onmessage = (e: MessageEvent<WorkerOut>) => {
     const m = e.data;
     if (m.type === 'loading') {
       state.loading = m.specs;
-      arm(LOAD_MS, `Loading ${m.specs.join(', ')} took over ${LOAD_MS / 1000} s. Check the package names or your network.`);
+      arm(
+        LOAD_MS,
+        `Loading ${m.specs.join(', ')} took over ${LOAD_MS / 1000} s. Check the package names or your network.`,
+      );
     } else if (m.type === 'start') {
       state.loading = null;
       state.running = m.index;
@@ -108,5 +128,9 @@ export function runCode(
   const msg: WorkerIn = { js, tests };
   worker.postMessage(msg);
   emit();
-  return { cancel: () => { finish('Cancelled'); } };
+  return {
+    cancel: () => {
+      finish('Cancelled');
+    },
+  };
 }

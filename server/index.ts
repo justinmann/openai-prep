@@ -12,13 +12,11 @@ import { stringsDef } from '../shared/strings';
 // `WorkerHandlers<typeof cronTasks>` resolves to `{}` and trips
 // no-generated-empty-object-type. `setWorkers(cronTasks, cronHandlers)` below
 // still checks the pair, so adding a task and a mismatched handler is caught.
-const cronHandlers = {
-};
+const cronHandlers = {};
 
 const app = createApp(
   { requests, messages },
-  {
-  },
+  {},
   collections,
   (configurator: AppConfigurator) => {
     configurator.setPages({ pages });

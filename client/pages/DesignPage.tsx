@@ -18,7 +18,11 @@ import { TopBar } from '../components/TopBar';
 import { Link } from '../router';
 import { designDraft, gradeHistory, prefs, type GradeRecord } from '../storage';
 
-const STATUS_LABEL: Record<CoverageStatus, string> = { met: 'Met', partial: 'Partial', missing: 'Missing' };
+const STATUS_LABEL: Record<CoverageStatus, string> = {
+  met: 'Met',
+  partial: 'Partial',
+  missing: 'Missing',
+};
 
 const TEMPLATE = `## Requirements & assumptions
 
@@ -42,7 +46,10 @@ export default function DesignPage({ id }: { id: string }): React.ReactElement {
   if (!q)
     return (
       <div className="notfound">
-        No design question “{id}”. <Link to="" params={{}}>Back to the list</Link>
+        No design question “{id}”.{' '}
+        <Link to="" params={{}}>
+          Back to the list
+        </Link>
       </div>
     );
   return <DesignWorkspace key={q.id} q={q} />;
@@ -51,16 +58,24 @@ export default function DesignPage({ id }: { id: string }): React.ReactElement {
 function DesignWorkspace({ q }: { q: DesignQuestion }): React.ReactElement {
   const [text, setText] = useState(() => designDraft.get(q.id) ?? TEMPLATE);
   const [level, setLevel] = useState<Level>(() => prefs.level());
-  const [history, setHistory] = useState<GradeRecord[]>(() => gradeHistory.get(q.id));
+  const [history, setHistory] = useState<GradeRecord[]>(() =>
+    gradeHistory.get(q.id),
+  );
   const [shown, setShown] = useState(0);
   const [grading, setGrading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [left, setLeft] = useState<'prompt' | 'feedback'>(history.length ? 'feedback' : 'prompt');
+  const [left, setLeft] = useState<'prompt' | 'feedback'>(
+    history.length ? 'feedback' : 'prompt',
+  );
   const abort = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    const t = setTimeout(() => { designDraft.set(q.id, text); }, 300);
-    return () => { clearTimeout(t); };
+    const t = setTimeout(() => {
+      designDraft.set(q.id, text);
+    }, 300);
+    return () => {
+      clearTimeout(t);
+    };
   }, [text, q.id]);
   useEffect(() => () => abort.current?.abort(), []);
 
@@ -69,7 +84,9 @@ function DesignWorkspace({ q }: { q: DesignQuestion }): React.ReactElement {
   const grade = async () => {
     if (grading) return;
     if (words < 80) {
-      setError('Write a bit more first: the grader needs at least ~80 words of design to judge.');
+      setError(
+        'Write a bit more first: the grader needs at least ~80 words of design to judge.',
+      );
       return;
     }
     setError(null);
@@ -80,7 +97,11 @@ function DesignWorkspace({ q }: { q: DesignQuestion }): React.ReactElement {
         {
           model: GRADER_MODEL,
           messages: buildGraderMessages(q, text, level),
-          options: { maxTokens: 6000, temperature: 0.2, reasoningEffort: 'off' },
+          options: {
+            maxTokens: 6000,
+            temperature: 0.2,
+            reasoningEffort: 'off',
+          },
         },
         { signal: abort.current.signal },
       );
@@ -89,7 +110,12 @@ function DesignWorkspace({ q }: { q: DesignQuestion }): React.ReactElement {
           ? content
           : content.map((p) => (p.type === 'text' ? p.text : '')).join('');
       const g = parseGrade(raw);
-      const next = gradeHistory.add(q.id, { at: Date.now(), level, words, grade: g });
+      const next = gradeHistory.add(q.id, {
+        at: Date.now(),
+        level,
+        words,
+        grade: g,
+      });
       setHistory(next);
       setShown(0);
       setLeft('feedback');
@@ -130,22 +156,38 @@ function DesignWorkspace({ q }: { q: DesignQuestion }): React.ReactElement {
             </Button>
           ))}
         </div>
-        <Button variant="primary" size="sm" data-id="grade-design" disabled={grading} onClick={() => void grade()}>
-          {grading ? 'Grading…' : 'Get feedback'} {!grading && <span className="kbd">⌘↵</span>}
+        <Button
+          variant="primary"
+          size="sm"
+          data-id="grade-design"
+          disabled={grading}
+          onClick={() => void grade()}
+        >
+          {grading ? 'Grading…' : 'Get feedback'}{' '}
+          {!grading && <span className="kbd">⌘↵</span>}
         </Button>
       </TopBar>
 
       <div className="split">
         <aside className="pane pane-left">
           <div className="seg">
-            <Button size="sm" variant={left === 'prompt' ? 'secondary' : 'ghost'} data-id="show-prompt" onClick={() => { setLeft('prompt'); }}>
+            <Button
+              size="sm"
+              variant={left === 'prompt' ? 'secondary' : 'ghost'}
+              data-id="show-prompt"
+              onClick={() => {
+                setLeft('prompt');
+              }}
+            >
               Problem
             </Button>
             <Button
               size="sm"
               variant={left === 'feedback' ? 'secondary' : 'ghost'}
               data-id="show-feedback"
-              onClick={() => { setLeft('feedback'); }}
+              onClick={() => {
+                setLeft('feedback');
+              }}
             >
               Feedback{history.length ? ` (${history.length})` : ''}
             </Button>
@@ -180,11 +222,23 @@ function DesignWorkspace({ q }: { q: DesignQuestion }): React.ReactElement {
               </ul>
             </div>
           ) : grading ? (
-            <div className="prompt empty">Reading your design against the requirements and rubric… this takes up to a minute.</div>
+            <div className="prompt empty">
+              Reading your design against the requirements and rubric… this
+              takes up to a minute.
+            </div>
           ) : !rec ? (
-            <div className="prompt empty">No feedback yet. Write your design on the right, then press Get feedback.</div>
+            <div className="prompt empty">
+              No feedback yet. Write your design on the right, then press Get
+              feedback.
+            </div>
           ) : (
-            <Feedback q={q} rec={rec} history={history} shown={shown} onShow={setShown} />
+            <Feedback
+              q={q}
+              rec={rec}
+              history={history}
+              shown={shown}
+              onShow={setShown}
+            />
           )}
         </aside>
 
@@ -201,7 +255,8 @@ function DesignWorkspace({ q }: { q: DesignQuestion }): React.ReactElement {
           </div>
           <div className="statusbar">
             <span className="muted small">
-              {Math.max(0, words)} words · graded as {levels[level]} · saved in this browser
+              {Math.max(0, words)} words · graded as {levels[level]} · saved in
+              this browser
             </span>
             {error && <span className="error small">{error}</span>}
           </div>
@@ -226,7 +281,8 @@ function Feedback({
 }): React.ReactElement {
   const g = rec.grade;
   const good = g.verdict === 'hire' || g.verdict === 'strong_hire';
-  const labelFor = (rid: string) => q.rubric.find((r) => r.id === rid)?.label ?? rid;
+  const labelFor = (rid: string) =>
+    q.rubric.find((r) => r.id === rid)?.label ?? rid;
   return (
     <div className="prompt feedback" data-id="feedback">
       <div className={`verdict ${good ? 'verdict-good' : 'verdict-bad'}`}>
@@ -234,7 +290,8 @@ function Feedback({
         <div>
           <div className="verdict-label">{verdictLabels[g.verdict]}</div>
           <div className="muted small">
-            as {levels[rec.level]} · {rec.words} words · {new Date(rec.at).toLocaleString()}
+            as {levels[rec.level]} · {rec.words} words ·{' '}
+            {new Date(rec.at).toLocaleString()}
           </div>
         </div>
       </div>
@@ -243,7 +300,9 @@ function Feedback({
       <h4>Requirements</h4>
       {requirementCoverage(q, g).map((r) => (
         <div key={r.id} className="cov">
-          <span className={`pill pill-${r.status ?? 'none'}`}>{r.status ? STATUS_LABEL[r.status] : 'n/a'}</span>
+          <span className={`pill pill-${r.status ?? 'none'}`}>
+            {r.status ? STATUS_LABEL[r.status] : 'n/a'}
+          </span>
           <div>
             <div className="cov-title">{r.text}</div>
             <div className="cov-note">{r.note}</div>
@@ -254,7 +313,9 @@ function Feedback({
       <h4>Rubric</h4>
       {g.rubric.map((r) => (
         <div key={r.id} className="cov">
-          <span className={`pill pill-${r.status}`}>{STATUS_LABEL[r.status]}</span>
+          <span className={`pill pill-${r.status}`}>
+            {STATUS_LABEL[r.status]}
+          </span>
           <div>
             <div className="cov-title">{labelFor(r.id)}</div>
             <div className="cov-note">{r.note}</div>
@@ -280,9 +341,14 @@ function Feedback({
       </ol>
       <h4>Follow-ups the interviewer would ask</h4>
       <ul>
-        {[...g.followUps, ...q.followUps.filter((f) => !g.followUps.includes(f))].slice(0, 6).map((s, i) => (
-          <li key={i}>{s}</li>
-        ))}
+        {[
+          ...g.followUps,
+          ...q.followUps.filter((f) => !g.followUps.includes(f)),
+        ]
+          .slice(0, 6)
+          .map((s, i) => (
+            <li key={i}>{s}</li>
+          ))}
       </ul>
 
       {history.length > 1 && (
@@ -295,9 +361,15 @@ function Feedback({
                 size="sm"
                 variant={i === shown ? 'secondary' : 'ghost'}
                 data-id={`attempt-${i}`}
-                onClick={() => { onShow(i); }}
+                onClick={() => {
+                  onShow(i);
+                }}
               >
-                {new Date(h.at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} · {h.grade.score}/10
+                {new Date(h.at).toLocaleDateString(undefined, {
+                  month: 'short',
+                  day: 'numeric',
+                })}{' '}
+                · {h.grade.score}/10
               </Button>
             ))}
           </div>

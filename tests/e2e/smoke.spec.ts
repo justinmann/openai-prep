@@ -12,7 +12,11 @@ test('home page boots and renders without errors', async ({ page }) => {
   page.on('pageerror', (err) => errors.push(`pageerror: ${err.message}`));
   page.on('console', (msg) => {
     // Dev-only: the framework's push service worker is not served locally.
-    if (msg.type() === 'error' && !msg.text().includes('received when fetching the script')) errors.push(`console.error: ${msg.text()}`);
+    if (
+      msg.type() === 'error' &&
+      !msg.text().includes('received when fetching the script')
+    )
+      errors.push(`console.error: ${msg.text()}`);
   });
 
   await page.goto('/');

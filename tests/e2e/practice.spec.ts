@@ -7,7 +7,11 @@ function trackErrors(page: Page): string[] {
   page.on('pageerror', (err) => errors.push(`pageerror: ${err.message}`));
   page.on('console', (msg) => {
     // Dev-only: the framework's push service worker is not served locally.
-    if (msg.type() === 'error' && !msg.text().includes('received when fetching the script')) errors.push(`console.error: ${msg.text()}`);
+    if (
+      msg.type() === 'error' &&
+      !msg.text().includes('received when fetching the script')
+    )
+      errors.push(`console.error: ${msg.text()}`);
   });
   return errors;
 }
@@ -20,7 +24,9 @@ async function seedDraft(page: Page, key: string, value: string) {
 test('home lists coding and design questions', async ({ page }) => {
   const errors = trackErrors(page);
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'OpenAI coding & system design' })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'OpenAI coding & system design' }),
+  ).toBeVisible();
   await expect(page.locator('.qcard')).toHaveCount(17);
   expect(errors).toEqual([]);
 });
@@ -35,14 +41,18 @@ test('starter code runs and fails the tests', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
-test('reference solution passes every test in the browser', async ({ page }) => {
+test('reference solution passes every test in the browser', async ({
+  page,
+}) => {
   const q = codingQuestions.find((x) => x.id === 'kv-serialize')!;
   const total = q.parts.reduce((n, p) => n + p.tests.length, 0);
   await seedDraft(page, 'oaiprep:code:kv-serialize', q.solution);
   const errors = trackErrors(page);
   await page.goto('/coding/kv-serialize');
   await page.locator('[data-id="run-tests"]').click();
-  await expect(page.locator('.allpass')).toContainText(`All ${total} tests pass`);
+  await expect(page.locator('.allpass')).toContainText(
+    `All ${total} tests pass`,
+  );
   await expect(page.locator('.t-pass')).toHaveCount(total);
   expect(errors).toEqual([]);
 });
@@ -57,14 +67,23 @@ test('typing in the editor and the console tab work', async ({ page }) => {
   await page.keyboard.press('ControlOrMeta+Enter');
   await expect(page.locator('.t-fail').first()).toBeVisible();
   await page.locator('[data-id="tab-console"]').click();
-  await expect(page.locator('.console')).toContainText('hello from the sandbox');
+  await expect(page.locator('.console')).toContainText(
+    'hello from the sandbox',
+  );
 });
 
 test('an infinite loop is stopped, not frozen', async ({ page }) => {
-  await seedDraft(page, 'oaiprep:code:kv-serialize', 'function serialize(d) { while (true) {} }\nfunction deserialize(s) { return {}; }');
+  await seedDraft(
+    page,
+    'oaiprep:code:kv-serialize',
+    'function serialize(d) { while (true) {} }\nfunction deserialize(s) { return {}; }',
+  );
   await page.goto('/coding/kv-serialize');
   await page.locator('[data-id="run-tests"]').click();
-  await expect(page.locator('.t-timeout').first()).toContainText('Infinite loop', { timeout: 15_000 });
+  await expect(page.locator('.t-timeout').first()).toContainText(
+    'Infinite loop',
+    { timeout: 15_000 },
+  );
   await expect(page.locator('.t-skipped').first()).toBeVisible();
   await expect(page.locator('[data-id="run-tests"]')).toBeVisible();
 });
@@ -83,24 +102,37 @@ test('npm packages can be imported from esm.sh', async ({ page }) => {
   const errors = trackErrors(page);
   await page.goto('/coding/kv-serialize');
   await page.locator('[data-id="run-tests"]').click();
-  await expect(page.locator('.t-pass').first()).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator('.t-pass').first()).toBeVisible({
+    timeout: 30_000,
+  });
   await page.locator('[data-id="tab-console"]').click();
-  await expect(page.locator('.console')).toContainText('chunks [[1,2],[3]] function');
+  await expect(page.locator('.console')).toContainText(
+    'chunks [[1,2],[3]] function',
+  );
   expect(errors).toEqual([]);
 });
 
 test('a missing package is reported by name', async ({ page }) => {
-  await seedDraft(page, 'oaiprep:code:kv-serialize', "import x from 'this-package-does-not-exist-zz9';\nconsole.log(x);");
+  await seedDraft(
+    page,
+    'oaiprep:code:kv-serialize',
+    "import x from 'this-package-does-not-exist-zz9';\nconsole.log(x);",
+  );
   await page.goto('/coding/kv-serialize');
   await page.locator('[data-id="run-tests"]').click();
-  await expect(page.locator('.t-fail').first()).toContainText('Could not import "this-package-does-not-exist-zz9"', { timeout: 30_000 });
+  await expect(page.locator('.t-fail').first()).toContainText(
+    'Could not import "this-package-does-not-exist-zz9"',
+    { timeout: 30_000 },
+  );
 });
 
 test('a syntax error is reported', async ({ page }) => {
   await seedDraft(page, 'oaiprep:code:kv-serialize', 'function serialize( {');
   await page.goto('/coding/kv-serialize');
   await page.locator('[data-id="run-tests"]').click();
-  await expect(page.locator('.compile-error')).toContainText('Could not compile');
+  await expect(page.locator('.compile-error')).toContainText(
+    'Could not compile',
+  );
 });
 
 test('design answer gets AI feedback', async ({ page }) => {
@@ -123,6 +155,10 @@ test('design answer gets AI feedback', async ({ page }) => {
   await seedDraft(page, 'oaiprep:design:design-webhooks', answer);
   await page.goto('/design/design-webhooks');
   await page.locator('[data-id="grade-design"]').click();
-  await expect(page.locator('[data-id="feedback"] .verdict-label')).toBeVisible({ timeout: 150_000 });
-  await expect(page.locator('[data-id="feedback"] .cov')).toHaveCount(3 + 3 + 7); // functional + non-functional + rubric
+  await expect(page.locator('[data-id="feedback"] .verdict-label')).toBeVisible(
+    { timeout: 150_000 },
+  );
+  await expect(page.locator('[data-id="feedback"] .cov')).toHaveCount(
+    3 + 3 + 7,
+  ); // functional + non-functional + rubric
 });

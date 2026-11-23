@@ -41,10 +41,10 @@ export function format(v: unknown, depth = 0): string {
   if (typeof v === 'bigint') return `${v}n`;
   if (v === undefined) return 'undefined';
   if (typeof v === 'function') return `[Function ${v.name || 'anonymous'}]`;
-  if (v === null) return "null";
-  if (typeof v === "number" || typeof v === "boolean") return String(v);
-  if (typeof v === "symbol") return v.toString();
-  if (typeof v !== "object") return typeof v;
+  if (v === null) return 'null';
+  if (typeof v === 'number' || typeof v === 'boolean') return String(v);
+  if (typeof v === 'symbol') return v.toString();
+  if (typeof v !== 'object') return typeof v;
   if (v instanceof Error) return `${v.name}: ${v.message}`;
   if (Array.isArray(v))
     return `[${v.map((x) => format(x, depth + 1)).join(', ')}]`;
@@ -66,7 +66,8 @@ export function deepEqual(a: unknown, b: unknown): boolean {
   if (Array.isArray(a) !== Array.isArray(b)) return false;
   if (a instanceof Map && b instanceof Map) {
     if (a.size !== b.size) return false;
-    for (const [k, v] of a) if (!b.has(k) || !deepEqual(v, b.get(k))) return false;
+    for (const [k, v] of a)
+      if (!b.has(k) || !deepEqual(v, b.get(k))) return false;
     return true;
   }
   if (a instanceof Set && b instanceof Set) {
@@ -103,7 +104,9 @@ const helpers = {
       threw = true;
     }
     if (!threw)
-      throw new AssertionError(`${label ? `${label}: ` : ''}expected an error to be thrown`);
+      throw new AssertionError(
+        `${label ? `${label}: ` : ''}expected an error to be thrown`,
+      );
   },
   sleep(ms: number): Promise<void> {
     return new Promise((r) => setTimeout(r, ms));
@@ -119,10 +122,7 @@ export function buildProgram(js: string, tests: CodingTest[]): string {
   // Helpers are destructured inside each test so a candidate's own top-level
   // `sleep` or `now` does not collide with them.
   const fns = tests
-    .map(
-      (t) =>
-        `async () => {\nconst { ${HELPER_NAMES} } = __h;\n${t.code}\n}`,
-    )
+    .map((t) => `async () => {\nconst { ${HELPER_NAMES} } = __h;\n${t.code}\n}`)
     .join(',\n');
   return `${js}\n;return [\n${fns}\n];`;
 }
@@ -151,7 +151,8 @@ export type ModuleLoader = (spec: string) => Promise<Record<string, unknown>>;
  */
 export function findImports(js: string): string[] {
   const out = new Set<string>();
-  for (const m of js.matchAll(/\brequire\((['"])([^'"\n]+)\1\)/g)) out.add(m[2]!);
+  for (const m of js.matchAll(/\brequire\((['"])([^'"\n]+)\1\)/g))
+    out.add(m[2]!);
   return [...out];
 }
 
@@ -163,9 +164,13 @@ export function findImports(js: string): string[] {
 export function moduleUrl(spec: string): string {
   if (spec.startsWith('https://')) return spec;
   if (spec.startsWith('.') || spec.startsWith('/'))
-    throw new Error(`Cannot import "${spec}": there are no local files. Import npm packages by name.`);
+    throw new Error(
+      `Cannot import "${spec}": there are no local files. Import npm packages by name.`,
+    );
   if (spec.startsWith('node:'))
-    throw new Error(`Cannot import "${spec}": Node built-ins do not exist in the browser.`);
+    throw new Error(
+      `Cannot import "${spec}": Node built-ins do not exist in the browser.`,
+    );
   return `https://esm.sh/${spec}`;
 }
 
@@ -190,10 +195,18 @@ export async function runAll(
   loadModule?: ModuleLoader,
 ): Promise<void> {
   const consoleProxy = {
-    log: (...a: unknown[]) => { cb.onLog({ level: 'log', text: a.map(show).join(' ') }); },
-    info: (...a: unknown[]) => { cb.onLog({ level: 'log', text: a.map(show).join(' ') }); },
-    warn: (...a: unknown[]) => { cb.onLog({ level: 'warn', text: a.map(show).join(' ') }); },
-    error: (...a: unknown[]) => { cb.onLog({ level: 'error', text: a.map(show).join(' ') }); },
+    log: (...a: unknown[]) => {
+      cb.onLog({ level: 'log', text: a.map(show).join(' ') });
+    },
+    info: (...a: unknown[]) => {
+      cb.onLog({ level: 'log', text: a.map(show).join(' ') });
+    },
+    warn: (...a: unknown[]) => {
+      cb.onLog({ level: 'warn', text: a.map(show).join(' ') });
+    },
+    error: (...a: unknown[]) => {
+      cb.onLog({ level: 'error', text: a.map(show).join(' ') });
+    },
   };
   const failAll = (message: string) => {
     tests.forEach((_, index) => {
@@ -215,7 +228,9 @@ export async function runAll(
           try {
             modules.set(spec, asCommonJs(await loadModule(spec)));
           } catch (err) {
-            throw new Error(`Could not import "${spec}": ${err instanceof Error ? err.message : String(err)}`);
+            throw new Error(
+              `Could not import "${spec}": ${err instanceof Error ? err.message : String(err)}`,
+            );
           }
         }),
       );
@@ -226,16 +241,23 @@ export async function runAll(
   }
   const requireModule = (spec: string) => {
     const mod = modules.get(spec);
-    if (!mod) throw new Error(`Cannot import "${spec}" dynamically; use a static import at the top of your code.`);
+    if (!mod)
+      throw new Error(
+        `Cannot import "${spec}" dynamically; use a static import at the top of your code.`,
+      );
     return mod;
   };
 
   let fns: (() => Promise<void>)[];
   try {
     // eslint-disable-next-line @typescript-eslint/no-implied-eval -- running the candidate's code is the point
-    const factory = new Function('__h', 'console', 'exports', 'require', buildProgram(js, tests)) as (
-      ...args: unknown[]
-    ) => (() => Promise<void>)[];
+    const factory = new Function(
+      '__h',
+      'console',
+      'exports',
+      'require',
+      buildProgram(js, tests),
+    ) as (...args: unknown[]) => (() => Promise<void>)[];
     fns = factory(helpers, consoleProxy, {}, requireModule);
   } catch (err) {
     failAll(`Your code failed before any test ran: ${describeError(err)}`);
@@ -249,7 +271,9 @@ export async function runAll(
       await Promise.race([
         fns[index]!(),
         new Promise((_, reject) => {
-          timer = setTimeout(() => { reject(new TimeoutError()); }, asyncTimeoutMs);
+          timer = setTimeout(() => {
+            reject(new TimeoutError());
+          }, asyncTimeoutMs);
         }),
       ]);
       cb.onResult({ index, status: 'pass', ms: performance.now() - t0 });
