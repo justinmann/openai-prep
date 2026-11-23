@@ -5,7 +5,10 @@ import type { DesignQuestion } from './questions/types';
 // AI grading of a written system-design answer. The prompt is built here and
 // the model's reply parsed with zod, so both are unit-testable without a model.
 
-export const GRADER_MODEL = 'claude_opus_4_8' as const;
+// Opus 5.5 always thinks (it rejects thinking: disabled and sampling params
+// like temperature), so callers set an effort level, not 'off', and leave
+// maxTokens room for the thinking as well as the JSON reply.
+export const GRADER_MODEL = 'claude_opus_5_5' as const;
 
 export const levels = {
   L4: 'mid-level engineer (L4)',

@@ -150,9 +150,8 @@ function DesignWorkspace({ q }: { q: DesignQuestion }): React.ReactElement {
             ...(imageDataUrl ? { imageDataUrl } : {}),
           }),
           options: {
-            maxTokens: 6000,
-            temperature: 0.2,
-            reasoningEffort: 'off',
+            maxTokens: 16000,
+            reasoningEffort: 'medium',
           },
         },
         { signal: abort.current.signal },

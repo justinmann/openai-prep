@@ -167,6 +167,7 @@ test('a drawn design with short notes gets AI feedback', async ({ page }) => {
   const body = (await sent).postData() ?? '';
   expect(body).toContain('\\"Producers + outbox\\" → \\"Kafka\\"');
   expect(body).toContain('data:image/png;base64,');
+  expect(body).toContain('"model":"claude_opus_5_5"');
 
   await expect(page.locator('[data-id="feedback"] .verdict-label')).toBeVisible(
     { timeout: 150_000 },
