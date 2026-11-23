@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.DS_Store
+local/
+logs/
+coverage/
+
+# ugly-studio state — throwaway local dev/IDE state (dev-server log, session &
+# codebase index, sandbox, bundled minio/postgres). None of it is committed.
+.ugly-studio/

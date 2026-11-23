@@ -1,0 +1,45 @@
+:root {
+  --safe-area-inset-top: env(safe-area-inset-top, 0px);
+  --safe-area-inset-right: env(safe-area-inset-right, 0px);
+  --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-inset-left: env(safe-area-inset-left, 0px);
+  /* The on-screen keyboard's occlusion of the page's bottom edge. The native shell
+     (iOS + Android) sets this identically; it's 0 in a plain browser. It is SEPARATE
+     from --safe-area-inset-bottom (the system bars) — combine them with max(), never add.
+     Most apps should use PageLayout / useSafeAreaInsets / <KeyboardSpacer>, which already
+     fold the keyboard into safeArea.bottom. Raw-CSS pages that pin content to the bottom
+     can use the helpers below (uniform across iOS/Android, no platform checks). */
+  --keyboard-inset-height: 0px;
+}
+
+html {
+  height: 100%;
+  height: 100dvh;
+}
+
+body {
+  overscroll-behavior-y: none;
+}
+
+/* Apply to a custom full-height / full-bleed scroll container so its content
+   clears the notch, status bar, and home indicator. index.html sets
+   viewport-fit=cover, so edge content is clipped without this. PageLayout
+   already handles insets for normal pages — this is for bespoke pages
+   (e.g. a marketing HomePage) that render their own root container. */
+.safe-area {
+  box-sizing: border-box;
+  padding-top: var(--safe-area-inset-top);
+  padding-bottom: var(--safe-area-inset-bottom);
+  padding-left: var(--safe-area-inset-left);
+  padding-right: var(--safe-area-inset-right);
+}
+
+/* Bottom inset that clears BOTH the system bars and the on-screen keyboard, identically on
+   iOS and Android — for a raw-CSS element pinned to the bottom (a composer, a toolbar) that
+   isn't wrapped by PageLayout. Use as `padding-bottom: var(--inset-bottom-with-keyboard)`. */
+:root {
+  --inset-bottom-with-keyboard: max(
+    var(--safe-area-inset-bottom),
+    var(--keyboard-inset-height)
+  );
+}
