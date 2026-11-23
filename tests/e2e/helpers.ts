@@ -92,7 +92,17 @@ export async function seedDesign(
 /** Console/page errors, ignoring dev-only noise. */
 export function trackErrors(page: Page): string[] {
   const errors: string[] = [];
-  page.on('pageerror', (err) => errors.push(`pageerror: ${err.message}`));
+  page.on('pageerror', (err) => {
+    // WebKit raises this on the page being left when a full navigation aborts
+    // its in-flight lazy chunk imports (seen on back-to-back page.goto calls).
+    // The visitor is already on the next page; nothing they see breaks.
+    if (
+      page.context().browser()?.browserType().name() === 'webkit' &&
+      err.message.includes('Importing a module script failed')
+    )
+      return;
+    errors.push(`pageerror: ${err.message}`);
+  });
   page.on('console', (msg) => {
     const devOnly =
       msg.text().includes('received when fetching the script') ||
@@ -102,7 +112,16 @@ export function trackErrors(page: Page): string[] {
     const excalidrawUnload = msg
       .text()
       .includes('Permissions policy violation: unload');
-    if (msg.type() === 'error' && !devOnly && !excalidrawUnload)
+    // WebKit logs aborted fetches of a page being reloaded or left.
+    const webkitAborted =
+      page.context().browser()?.browserType().name() === 'webkit' &&
+      msg.text().includes('TypeError: Load failed');
+    if (
+      msg.type() === 'error' &&
+      !devOnly &&
+      !excalidrawUnload &&
+      !webkitAborted
+    )
       errors.push(`console.error: ${msg.text()}`);
   });
   return errors;

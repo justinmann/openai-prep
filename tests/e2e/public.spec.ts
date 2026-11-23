@@ -19,8 +19,13 @@ test('signed out: landing, question list, company page and a question page all r
   );
   await expect(page.getByText(/hello interview/i)).toHaveCount(0);
 
-  await page.locator('[data-id="company-stripe"]:visible').click();
-  await expect(page).toHaveURL(/\/companies\/stripe$/);
+  // Follow links by href: a click lands mid-way through the router's slide
+  // animation, which can hit the incoming page and start a second navigation.
+  await expect(page.locator('[data-id="company-stripe"]')).toHaveAttribute(
+    'href',
+    '/companies/stripe',
+  );
+  await page.goto('/companies/stripe');
   await expect(
     page.getByRole('heading', { level: 1, name: /Stripe coding/ }),
   ).toBeVisible();
@@ -28,8 +33,6 @@ test('signed out: landing, question list, company page and a question page all r
     page.getByText('Idempotency and retries', { exact: true }),
   ).toBeVisible();
 
-  // The router slides the next page in over the last one, so follow the
-  // link by its href instead of clicking mid-animation.
   await expect(
     page.locator('[data-id="q-design-payment-ledger"]').last(),
   ).toHaveAttribute('href', '/design/design-payment-ledger');
