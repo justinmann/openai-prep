@@ -11,7 +11,8 @@ import type { CodingQuestion, Language } from '../../shared/questions';
 import { CodeEditor } from '../components/CodeEditor';
 import { Markdown } from '../components/Markdown';
 import { TopBar } from '../components/TopBar';
-import { Link } from '../router';
+import { LanguageGuide } from '../components/LanguageGuide';
+import { Link, useRouter } from '../router';
 import {
   runCode,
   warmPython,
@@ -103,6 +104,19 @@ function CodingWorkspace({
   const [left, setLeft] = useState<'prompt' | 'solution'>('prompt');
   const [confirmReset, setConfirmReset] = useState(false);
   const handle = useRef<RunHandle | null>(null);
+  const router = useRouter();
+  const openGuide = useCallback(() => {
+    let popup: { hide: () => void } | null = null;
+    popup = router.openPopup(
+      <LanguageGuide
+        initial={lang}
+        onClose={() => {
+          popup?.hide();
+        }}
+      />,
+      { mode: 'transient' },
+    );
+  }, [router, lang]);
   const codeRef = useRef(code);
   codeRef.current = code;
 
@@ -150,6 +164,15 @@ function CodingWorkspace({
     <div className="workspace">
       <TopBar title={q.title}>
         {q.python && <LanguagePicker lang={lang} onLang={onLang} />}
+        <Button
+          variant="ghost"
+          size="sm"
+          data-id="open-guide"
+          aria-label="Language guide"
+          onClick={openGuide}
+        >
+          ?
+        </Button>
         {running ? (
           <Button
             variant="secondary"

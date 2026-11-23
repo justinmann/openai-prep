@@ -627,3 +627,166 @@ a {
   padding: 1px 5px;
   border-radius: 4px;
 }
+
+/* ── Language guide popup ──────────────────────────────────────────────── */
+.guide {
+  width: min(920px, calc(100vw - 32px));
+  height: min(86vh, 900px);
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  color: var(--text);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+}
+.guide-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+.guide-head h2 {
+  margin: 0;
+  font-size: 16px;
+  margin-right: auto;
+}
+.guide-search {
+  width: 240px;
+  max-width: 100%;
+}
+.guide-search input {
+  width: 100%;
+  box-sizing: border-box;
+  background: #111317;
+  color: var(--text);
+  border: 1px solid var(--line);
+  padding: 6px 10px;
+  font-size: 13px;
+}
+.guide-tabs {
+  border-bottom: 1px solid var(--line);
+  overflow-x: auto;
+  flex-shrink: 0;
+}
+/* Keep tab labels readable on phones: the strip scrolls sideways instead. */
+.guide-tabs > div {
+  min-width: 860px;
+}
+/* TabContent stacks its pages absolutely, so it needs a sized container and
+   each page scrolls on its own. */
+.guide-body {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+}
+.guide-body > div,
+.guide-body > div > div {
+  height: 100%;
+}
+.guide-tab {
+  height: 100%;
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 16px 20px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.guide-entry {
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+.guide-entry-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.guide-entry h4,
+.guide-modules h4 {
+  margin: 0;
+  font-size: 14px;
+}
+.guide-entry .md p {
+  margin: 6px 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+.guide-code {
+  margin: 8px 0 0;
+  background: #111317;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  overflow-x: auto;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.guide-hit-head {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin: 8px 0;
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.chip {
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+}
+/* Token colours for @lezer/highlight's classHighlighter. */
+.tok-keyword,
+.tok-controlKeyword,
+.tok-definitionKeyword,
+.tok-moduleKeyword,
+.tok-operatorKeyword {
+  color: #c678dd;
+}
+.tok-string,
+.tok-string2 {
+  color: #98c379;
+}
+.tok-number,
+.tok-bool,
+.tok-atom {
+  color: #d19a66;
+}
+.tok-comment {
+  color: #7f8896;
+  font-style: italic;
+}
+.tok-typeName,
+.tok-className {
+  color: #e5c07b;
+}
+.tok-variableName.tok-definition,
+.tok-propertyName.tok-definition {
+  color: #61afef;
+}
+.tok-function {
+  color: #61afef;
+}
+.tok-propertyName {
+  color: #e06c75;
+}
+.tok-operator,
+.tok-punctuation {
+  color: #abb2bf;
+}

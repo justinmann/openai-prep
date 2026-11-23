@@ -15,6 +15,7 @@ export default [
       'vitest.config.ts',
       'playwright.config.ts',
       'tests/**',
+      'scripts/**',
       // Opt-in scaffold features live under `_features/` and are excluded from
       // tsconfig `include` until a user enables one. Typed linting (project:true)
       // errors on files outside the TS project, so ignore them here to match.
