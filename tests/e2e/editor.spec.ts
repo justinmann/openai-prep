@@ -113,3 +113,27 @@ test.describe('language services', () => {
     );
   });
 });
+
+test('Tab accepts the highlighted completion, and indents otherwise', async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  await useLanguage(page, 'typescript');
+  await replaceCode(page, 'const n = Math');
+  // Typed, not inserted: completion opens on typing.
+  await page.keyboard.type('.flo', { delay: 50 });
+  // The TypeScript service loads in a worker; ask again until it answers.
+  const list = page.locator('.cm-tooltip-autocomplete');
+  await expect(async () => {
+    await page.keyboard.press('Control+Space');
+    await expect(list).toContainText('floor', { timeout: 2_000 });
+  }).toPass({ timeout: 60_000 });
+  // CodeMirror ignores accept keys for 75 ms after the list opens.
+  await page.waitForTimeout(200);
+  await page.keyboard.press('Tab');
+  await expect(page.locator('.cm-content')).toHaveText('const n = Math.floor');
+  await replaceCode(page, '');
+  await page.keyboard.press('Tab');
+  await page.keyboard.insertText('x');
+  await expect(page.locator('.cm-content')).toHaveText('  x');
+});

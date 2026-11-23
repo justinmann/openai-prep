@@ -132,7 +132,7 @@ function Api({ groups }: { groups: ApiGroup[] }): React.ReactElement {
           <h4>
             {g.title}{' '}
             <span className="muted">
-              {g.prefix ? `${g.prefix}… ` : ''}({g.members.length})
+              ({g.members.length}){g.prefix ? ` · ${g.prefix}name` : ''}
             </span>
           </h4>
           <dl>

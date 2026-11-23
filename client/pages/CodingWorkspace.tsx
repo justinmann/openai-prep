@@ -9,7 +9,10 @@ import { Button } from 'ugly-app/client';
 import { codingReadiness } from '../../shared/companies';
 import { questionIn } from '../../shared/questions';
 import type { CodingQuestion, Language } from '../../shared/questions';
-import { CodeEditor } from '../components/CodeEditor';
+import { CodeEditor, type EditorHandle } from '../components/CodeEditor';
+import { FormatSettingsPopup } from '../components/FormatSettings';
+import { formatCode } from '../format';
+import { useFormatPrefs } from '../formatPrefs';
 import { CompanyPicker } from '../components/CompanyPicker';
 import { CodingProblem } from '../components/QuestionBits';
 import { TopBar } from '../components/TopBar';
@@ -293,34 +296,84 @@ function CodingWorkspace({
     (run !== null && !run.done) || (mainRun !== null && !mainRun.done);
   const consoleRun = lastMode === 'main' ? mainRun : run;
 
+  // Formatting: Prettier (TypeScript) or Ruff (Python), on demand or, in auto
+  // mode, right before every run.
+  const editor = useRef<EditorHandle | null>(null);
+  const [fmt, setFmt] = useFormatPrefs();
+  const [formatMsg, setFormatMsg] = useState<string | null>(null);
+  const formatNow = useCallback(async (): Promise<string> => {
+    const src = codeRef.current;
+    const r = await formatCode(lang, src, editor.current?.cursor() ?? 0, fmt);
+    if (!r.ok) {
+      setFormatMsg(`Could not format: ${r.error}`);
+      return src;
+    }
+    setFormatMsg(null);
+    // The editor may have changed while the formatter loaded; keep the edit.
+    if (codeRef.current !== src) return codeRef.current;
+    if (r.code !== src) {
+      editor.current?.replace(r.code, r.cursor);
+      codeRef.current = r.code;
+    }
+    return r.code;
+  }, [lang, fmt]);
+  const openFormatSettings = useCallback(() => {
+    let popup: { hide: () => void } | null = null;
+    popup = router.openPopup(
+      <FormatSettingsPopupLive
+        lang={lang}
+        onClose={() => {
+          popup?.hide();
+        }}
+        onChange={setFmt}
+      />,
+      { mode: 'transient' },
+    );
+  }, [router, lang, setFmt]);
+  const beforeRun = useCallback(
+    async () => (fmt.mode === 'auto' ? formatNow() : codeRef.current),
+    [fmt.mode, formatNow],
+  );
+
   const runMain = useCallback(() => {
     handle.current?.cancel();
     setTab('console');
     setLastMode('main');
-    handle.current = runCode(lang, codeRef.current, [], setMainRun, 'main');
-  }, [lang]);
+    void beforeRun().then((src) => {
+      handle.current = runCode(lang, src, [], setMainRun, 'main');
+    });
+  }, [lang, beforeRun]);
+
+  const runTests = useCallback(
+    (src: string) => {
+      handle.current = runCode(lang, src, tests, (u) => {
+        setRun(u);
+        if (u.done && !u.compileError) {
+          socket
+            .request('codingRecordRun', {
+              questionId: q.id,
+              language: lang,
+              passed: u.results.filter((r) => r?.status === 'pass').length,
+              total: tests.length,
+            })
+            .catch((err: unknown) => {
+              console.error('[coding] could not save test progress', err);
+            });
+        }
+      });
+    },
+    [socket, q.id, lang, tests],
+  );
 
   const start = useCallback(() => {
     handle.current?.cancel();
     setTab('results');
     setLastMode('tests');
     setRuns((n) => n + 1);
-    handle.current = runCode(lang, codeRef.current, tests, (u) => {
-      setRun(u);
-      if (u.done && !u.compileError) {
-        socket
-          .request('codingRecordRun', {
-            questionId: q.id,
-            language: lang,
-            passed: u.results.filter((r) => r?.status === 'pass').length,
-            total: tests.length,
-          })
-          .catch((err: unknown) => {
-            console.error('[coding] could not save test progress', err);
-          });
-      }
+    void beforeRun().then((src) => {
+      runTests(src);
     });
-  }, [socket, q.id, lang, tests]);
+  }, [beforeRun, runTests]);
 
   const passedIn = (pi: number) =>
     run
@@ -341,7 +394,30 @@ function CodingWorkspace({
         >
           {saveLabel[saveStatus]}
         </span>
+        {formatMsg && (
+          <span className="error small" data-id="format-error">
+            {formatMsg}
+          </span>
+        )}
         {q.python && <LanguagePicker lang={lang} onLang={onLang} />}
+        <Button
+          variant="ghost"
+          size="sm"
+          data-id="format-code"
+          aria-label="Format code"
+          onClick={() => void formatNow()}
+        >
+          Format <span className="kbd">⇧⌥F</span>
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          data-id="open-format-settings"
+          aria-label="Formatting settings"
+          onClick={openFormatSettings}
+        >
+          {fmt.mode === 'auto' ? 'Auto ⚙' : '⚙'}
+        </Button>
         <Button
           variant="ghost"
           size="sm"
@@ -445,6 +521,8 @@ function CodingWorkspace({
               language={lang}
               onSubmit={start}
               onRunCode={runMain}
+              onFormat={() => void formatNow()}
+              handle={editor}
               services
               data-id="code-editor"
               aria-label="Solution code editor"
@@ -665,5 +743,31 @@ function Readiness({
         {passed < total && ' · speed and runs count once every test passes'}
       </div>
     </div>
+  );
+}
+
+/** The settings popup reads prefs itself so it updates as options change. */
+function FormatSettingsPopupLive({
+  lang,
+  onChange,
+  onClose,
+}: {
+  lang: Language;
+  onChange: (
+    patch: Partial<import('../../shared/format').FormatSettings>,
+  ) => void;
+  onClose: () => void;
+}): React.ReactElement {
+  const [prefs, setPrefs] = useFormatPrefs();
+  return (
+    <FormatSettingsPopup
+      lang={lang}
+      prefs={prefs}
+      onChange={(patch) => {
+        setPrefs(patch);
+        onChange(patch);
+      }}
+      onClose={onClose}
+    />
   );
 }

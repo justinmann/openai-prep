@@ -13,6 +13,13 @@ import {
 import { basicSetup } from 'codemirror';
 import React, { useEffect, useRef } from 'react';
 
+/** Imperative access for formatting: read the cursor, replace the text. */
+export interface EditorHandle {
+  cursor: () => number;
+  /** Replace the whole document and put the cursor at `cursor`. */
+  replace: (text: string, cursor: number) => void;
+}
+
 interface Props {
   'value': string;
   'onChange': (v: string) => void;
@@ -21,6 +28,9 @@ interface Props {
   'onSubmit'?: () => void;
   /** Shift+Cmd/Ctrl+Enter */
   'onRunCode'?: () => void;
+  /** Shift+Alt+F: format the document. */
+  'onFormat'?: () => void;
+  'handle'?: React.RefObject<EditorHandle | null>;
   'placeholder'?: string;
   'data-id': string;
   'aria-label': string;
@@ -86,6 +96,25 @@ export function CodeEditor(props: Props): React.ReactElement {
           }),
           ...(props.placeholder ? [cmPlaceholder(props.placeholder)] : []),
           services.of([]),
+          // Shift+Alt+F formats (VS Code's binding). Matched by physical key:
+          // on macOS Option turns F into "Ï", and CodeMirror's keymap skips
+          // Option combinations there because they usually type characters.
+          EditorView.domEventHandlers({
+            keydown: (e) => {
+              if (
+                e.code !== 'KeyF' ||
+                !e.shiftKey ||
+                !e.altKey ||
+                e.metaKey ||
+                e.ctrlKey ||
+                !latest.current.onFormat
+              )
+                return false;
+              e.preventDefault();
+              latest.current.onFormat();
+              return true;
+            },
+          }),
           EditorView.updateListener.of((u) => {
             if (u.docChanged) latest.current.onChange(u.state.doc.toString());
           }),
@@ -96,6 +125,19 @@ export function CodeEditor(props: Props): React.ReactElement {
       }),
     });
     view.current = v;
+    if (props.handle)
+      props.handle.current = {
+        cursor: () => v.state.selection.main.head,
+        replace: (text, cursor) => {
+          const cur = v.state.doc.toString();
+          if (cur === text) return;
+          v.dispatch({
+            changes: { from: 0, to: cur.length, insert: text },
+            selection: { anchor: Math.max(0, Math.min(cursor, text.length)) },
+            scrollIntoView: true,
+          });
+        },
+      };
     let alive = true;
     if (props.services)
       loadServices(props.language)

@@ -713,7 +713,7 @@ a {
 }
 /* Keep tab labels readable on phones: the strip scrolls sideways instead. */
 .guide-tabs > div {
-  min-width: 860px;
+  min-width: 1120px;
 }
 /* TabContent stacks its pages absolutely, so it needs a sized container and
    each page scrolls on its own. */
@@ -1189,4 +1189,20 @@ h1.topbar-title {
 }
 .api-row dd {
   margin: 2px 0 0;
+}
+.fmt-popup {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.fmt-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.fmt-label {
+  font-size: 13px;
+  color: var(--muted);
 }

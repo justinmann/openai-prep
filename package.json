@@ -44,6 +44,7 @@
     "@lezer/highlight": "^1.2.5",
     "@typescript/vfs": "1.6.6",
     "@valtown/codemirror-ts": "2.3.1",
+    "@wasm-fmt/ruff_fmt": "0.15.20",
     "codemirror": "^6.0.2",
     "comlink": "4.4.2",
     "lru-cache": "^11.0.0",
