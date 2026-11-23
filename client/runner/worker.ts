@@ -15,6 +15,7 @@ export type WorkerOut =
   | { type: 'loading'; specs: string[] }
   | { type: 'result'; result: import('../../shared/runner/harness').TestResult }
   | { type: 'log'; line: import('../../shared/runner/harness').LogLine }
+  | { type: 'compileError'; message: string }
   | { type: 'done' };
 
 const post = (m: WorkerOut) => {

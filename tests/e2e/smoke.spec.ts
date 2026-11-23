@@ -11,11 +11,12 @@ test('home page boots and renders without errors', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (err) => errors.push(`pageerror: ${err.message}`));
   page.on('console', (msg) => {
-    // Dev-only: the framework's push service worker is not served locally.
-    if (
-      msg.type() === 'error' &&
-      !msg.text().includes('received when fetching the script')
-    )
+    // Dev-only: the framework's push service worker and web manifest are not
+    // served locally. Browsers word the 404 differently, so match the URL.
+    const devOnly =
+      msg.text().includes('received when fetching the script') ||
+      /\/(ugly-push-sw\.js|manifest\.webmanifest)$/.test(msg.location().url);
+    if (msg.type() === 'error' && !devOnly)
       errors.push(`console.error: ${msg.text()}`);
   });
 

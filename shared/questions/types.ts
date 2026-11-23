@@ -35,6 +35,24 @@ export interface CodingQuestion {
   parts: CodingPart[];
   /** A reference TypeScript solution that passes every part's tests. */
   solution: string;
+  /** The same question in Python, with the same parts and test names. */
+  python?: PythonVersion;
+}
+
+export type Language = 'typescript' | 'python';
+
+/**
+ * Python tests: \`code\` is the body of an \`async def\` run in the same globals
+ * as the candidate's code. Helpers in scope: assert_equal(actual, expected,
+ * label=None), assert_raises(fn, label=None), asyncio. Plain \`assert\` works too.
+ */
+export interface PythonVersion {
+  /** Replaces the question prompt when it shows TypeScript signatures. */
+  prompt?: string;
+  starter: string;
+  solution: string;
+  /** One entry per part, in order. */
+  parts: { prompt?: string; tests: CodingTest[] }[];
 }
 
 export interface RubricItem {

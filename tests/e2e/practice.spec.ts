@@ -6,11 +6,12 @@ function trackErrors(page: Page): string[] {
   const errors: string[] = [];
   page.on('pageerror', (err) => errors.push(`pageerror: ${err.message}`));
   page.on('console', (msg) => {
-    // Dev-only: the framework's push service worker is not served locally.
-    if (
-      msg.type() === 'error' &&
-      !msg.text().includes('received when fetching the script')
-    )
+    // Dev-only: the framework's push service worker and web manifest are not
+    // served locally. Browsers word the 404 differently, so match the URL.
+    const devOnly =
+      msg.text().includes('received when fetching the script') ||
+      /\/(ugly-push-sw\.js|manifest\.webmanifest)$/.test(msg.location().url);
+    if (msg.type() === 'error' && !devOnly)
       errors.push(`console.error: ${msg.text()}`);
   });
   return errors;
@@ -165,4 +166,89 @@ test('design answer gets AI feedback', async ({ page }) => {
   await expect(page.locator('[data-id="feedback"] .cov')).toHaveCount(
     3 + 3 + 7,
   ); // functional + non-functional + rubric
+});
+
+test.describe('python', () => {
+  test.setTimeout(120_000);
+
+  test('switching to Python shows the Python starter and remembers it', async ({
+    page,
+  }) => {
+    const errors = trackErrors(page);
+    await page.goto('/coding/kv-serialize');
+    await page.locator('[data-id="lang-python"]').click();
+    await expect(page.locator('.cm-content')).toContainText('def serialize');
+    await page.reload();
+    await expect(page.locator('.cm-content')).toContainText('def serialize');
+    await page.locator('[data-id="lang-typescript"]').click();
+    await expect(page.locator('.cm-content')).toContainText(
+      'function serialize',
+    );
+    expect(errors).toEqual([]);
+  });
+
+  test('reference solution passes every test in Pyodide', async ({ page }) => {
+    const { codingQuestions: all } = await import('../../shared/questions');
+    const q = all.find((x) => x.id === 'kv-serialize')!;
+    const total = q.parts.reduce((n, p) => n + p.tests.length, 0);
+    await seedDraft(page, 'oaiprep:code:kv-serialize:py', q.python!.solution);
+    await page.evaluate(() =>
+      localStorage.setItem('oaiprep:language', 'python'),
+    );
+    const errors = trackErrors(page);
+    await page.goto('/coding/kv-serialize');
+    await page.locator('[data-id="run-tests"]').click();
+    await expect(page.locator('.allpass')).toContainText(
+      `All ${total} tests pass`,
+      { timeout: 90_000 },
+    );
+    expect(errors).toEqual([]);
+  });
+
+  test('print goes to the console, errors name the line, loops are stopped', async ({
+    page,
+  }) => {
+    await seedDraft(
+      page,
+      'oaiprep:code:kv-serialize:py',
+      'print("hello from python")\n\ndef serialize(d):\n    return 1 / 0\n\ndef deserialize(s):\n    return {}\n',
+    );
+    await page.evaluate(() =>
+      localStorage.setItem('oaiprep:language', 'python'),
+    );
+    await page.goto('/coding/kv-serialize');
+    await page.locator('[data-id="run-tests"]').click();
+    await expect(page.locator('.tmsg').first()).toContainText(
+      'ZeroDivisionError: division by zero (solution.py line 4)',
+      { timeout: 90_000 },
+    );
+    await page.locator('[data-id="tab-console"]').click();
+    await expect(page.locator('.console')).toContainText('hello from python');
+
+    // A hang kills the worker; the next run must start a fresh one.
+    await page.locator('.cm-content').click();
+    await page.keyboard.press('ControlOrMeta+a');
+    await page.keyboard.type('while True:\npass\n');
+    await page.keyboard.press('ControlOrMeta+Enter');
+    await expect(page.locator('.t-timeout')).toBeVisible({ timeout: 90_000 });
+    await page.locator('.cm-content').click();
+    await page.keyboard.press('ControlOrMeta+a');
+    await page.keyboard.type('def serialize(d):\nreturn ""\n');
+    await page.keyboard.press('ControlOrMeta+Enter');
+    await expect(page.locator('.t-fail').first()).toBeVisible({
+      timeout: 90_000,
+    });
+  });
+
+  test('syntax errors are reported', async ({ page }) => {
+    await seedDraft(page, 'oaiprep:code:kv-serialize:py', 'def serialize(:\n');
+    await page.evaluate(() =>
+      localStorage.setItem('oaiprep:language', 'python'),
+    );
+    await page.goto('/coding/kv-serialize');
+    await page.locator('[data-id="run-tests"]').click();
+    await expect(page.locator('.compile-error')).toContainText('SyntaxError', {
+      timeout: 90_000,
+    });
+  });
 });

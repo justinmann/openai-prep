@@ -2,7 +2,7 @@ import React from 'react';
 import { codingQuestions, designQuestions } from '../../shared/questions';
 import { verdictLabels } from '../../shared/grader';
 import { Link } from '../router';
-import { codingProgress, gradeHistory } from '../storage';
+import { codingProgress, gradeHistory, langKey } from '../storage';
 
 function CodingBadge({
   id,
@@ -11,9 +11,16 @@ function CodingBadge({
   id: string;
   total: number;
 }): React.ReactElement | null {
-  const p = codingProgress.get(id);
+  // Best of TypeScript and Python.
+  const runs = [
+    codingProgress.get(id),
+    codingProgress.get(langKey(id, 'python')),
+  ]
+    .filter((x) => x !== null)
+    .sort((a, b) => b.passed - a.passed);
+  const p = runs[0];
   if (!p) return null;
-  const solved = p.passed === p.total && p.total === total;
+  const solved = runs.some((r) => r.passed === r.total && r.total === total);
   return (
     <span className={`badge ${solved ? 'badge-pass' : 'badge-partial'}`}>
       {solved ? 'Solved' : `${p.passed}/${p.total}`}
@@ -40,9 +47,9 @@ export default function HomePage(): React.ReactElement {
         <div className="eyebrow">Interview practice</div>
         <h1>OpenAI coding &amp; system design</h1>
         <p className="lede">
-          Coding questions run your TypeScript against the tests in your
-          browser. Design questions are graded by AI against the requirements
-          and an interviewer rubric.
+          Coding questions run your TypeScript or Python against the tests in
+          your browser. Design questions are graded by AI against the
+          requirements and an interviewer rubric.
         </p>
       </header>
 

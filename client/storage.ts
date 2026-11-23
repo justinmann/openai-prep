@@ -1,4 +1,5 @@
 import type { Grade, Level } from '../shared/grader';
+import type { Language } from '../shared/questions/types';
 
 // Per-browser drafts and progress. Every access is guarded: storage can be
 // unavailable (private mode, blocked site data) and the app must still work.
@@ -95,7 +96,16 @@ export const gradeHistory = {
   },
 };
 
+/** Draft and progress key for a question in a language (TS keeps the old key). */
+export const langKey = (id: string, lang: Language): string =>
+  lang === 'typescript' ? id : `${id}:py`;
+
 export const prefs = {
+  language: (): Language =>
+    read('language') === 'python' ? 'python' : 'typescript',
+  setLanguage: (l: Language) => {
+    write('language', l);
+  },
   level: (): Level => {
     const v = read('level');
     return v === 'L4' || v === 'L5' || v === 'L6' ? v : 'L5';

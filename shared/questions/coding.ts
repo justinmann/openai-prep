@@ -940,7 +940,7 @@ assertEqual(s.getCell('C1'), 16);`,
 assertThrows(() => s.setCell('A2', '=SUM(A1:A3)'));`,
         },
         {
-          name: 'cached reads on a 2000-cell chain',
+          name: 'cached reads on a long chain',
           code: String.raw`const s = new Spreadsheet();
 s.setCell('A1', '1');
 for (let i = 2; i <= 2000; i++) s.setCell('A' + i, '=A' + (i - 1) + '+1');

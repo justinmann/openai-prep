@@ -1,6 +1,7 @@
 import { indentWithTab } from '@codemirror/commands';
 import { javascript } from '@codemirror/lang-javascript';
 import { markdown } from '@codemirror/lang-markdown';
+import { python } from '@codemirror/lang-python';
 import { EditorState } from '@codemirror/state';
 import { oneDark } from '@codemirror/theme-one-dark';
 import {
@@ -14,7 +15,7 @@ import React, { useEffect, useRef } from 'react';
 interface Props {
   'value': string;
   'onChange': (v: string) => void;
-  'language': 'typescript' | 'markdown';
+  'language': 'typescript' | 'python' | 'markdown';
   /** Cmd/Ctrl+Enter */
   'onSubmit'?: () => void;
   'placeholder'?: string;
@@ -50,7 +51,9 @@ export function CodeEditor(props: Props): React.ReactElement {
           basicSetup,
           props.language === 'typescript'
             ? javascript({ typescript: true })
-            : [markdown(), EditorView.lineWrapping],
+            : props.language === 'python'
+              ? python()
+              : [markdown(), EditorView.lineWrapping],
           oneDark,
           EditorView.theme({
             '&': { height: '100%', fontSize: '13.5px' },

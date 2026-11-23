@@ -6,14 +6,19 @@ import React, {
   useState,
 } from 'react';
 import { Button } from 'ugly-app/client';
-import { findCoding } from '../../shared/questions';
-import type { CodingQuestion } from '../../shared/questions';
+import { findCoding, questionIn } from '../../shared/questions';
+import type { CodingQuestion, Language } from '../../shared/questions';
 import { CodeEditor } from '../components/CodeEditor';
 import { Markdown } from '../components/Markdown';
 import { TopBar } from '../components/TopBar';
 import { Link } from '../router';
-import { runCode, type RunHandle, type RunUpdate } from '../runner/runCode';
-import { codeDraft, codingProgress } from '../storage';
+import {
+  runCode,
+  warmPython,
+  type RunHandle,
+  type RunUpdate,
+} from '../runner/runCode';
+import { codeDraft, codingProgress, langKey, prefs } from '../storage';
 
 const ICON: Record<string, string> = {
   pass: '✓',
@@ -24,6 +29,9 @@ const ICON: Record<string, string> = {
 
 export default function CodingPage({ id }: { id: string }): React.ReactElement {
   const q = findCoding(id);
+  const [lang, setLang] = useState<Language>(() =>
+    q?.python ? prefs.language() : 'typescript',
+  );
   if (!q)
     return (
       <div className="notfound">
@@ -33,16 +41,63 @@ export default function CodingPage({ id }: { id: string }): React.ReactElement {
         </Link>
       </div>
     );
-  return <CodingWorkspace key={q.id} q={q} />;
+  return (
+    <CodingWorkspace
+      key={`${q.id}:${lang}`}
+      q={q}
+      lang={lang}
+      onLang={(l) => {
+        prefs.setLanguage(l);
+        setLang(l);
+      }}
+    />
+  );
 }
 
-function CodingWorkspace({ q }: { q: CodingQuestion }): React.ReactElement {
-  const tests = useMemo(() => q.parts.flatMap((p) => p.tests), [q]);
-  const partOf = useMemo(
-    () => q.parts.flatMap((p, pi) => p.tests.map(() => pi)),
-    [q],
+function LanguagePicker({
+  lang,
+  onLang,
+}: {
+  lang: Language;
+  onLang: (l: Language) => void;
+}): React.ReactElement {
+  return (
+    <div className="seg" role="group" aria-label="Language">
+      {(['typescript', 'python'] as const).map((l) => (
+        <Button
+          key={l}
+          size="sm"
+          variant={lang === l ? 'secondary' : 'ghost'}
+          data-id={`lang-${l}`}
+          aria-pressed={lang === l}
+          onClick={() => {
+            onLang(l);
+          }}
+        >
+          {l === 'typescript' ? 'TypeScript' : 'Python'}
+        </Button>
+      ))}
+    </div>
   );
-  const [code, setCode] = useState(() => codeDraft.get(q.id) ?? q.starter);
+}
+
+function CodingWorkspace({
+  q,
+  lang,
+  onLang,
+}: {
+  q: CodingQuestion;
+  lang: Language;
+  onLang: (l: Language) => void;
+}): React.ReactElement {
+  const view = useMemo(() => questionIn(q, lang), [q, lang]);
+  const key = langKey(q.id, lang);
+  const tests = useMemo(() => view.parts.flatMap((p) => p.tests), [view]);
+  const partOf = useMemo(
+    () => view.parts.flatMap((p, pi) => p.tests.map(() => pi)),
+    [view],
+  );
+  const [code, setCode] = useState(() => codeDraft.get(key) ?? view.starter);
   const [run, setRun] = useState<RunUpdate | null>(null);
   const [tab, setTab] = useState<'results' | 'console'>('results');
   const [left, setLeft] = useState<'prompt' | 'solution'>('prompt');
@@ -53,30 +108,34 @@ function CodingWorkspace({ q }: { q: CodingQuestion }): React.ReactElement {
 
   useEffect(() => {
     const t = setTimeout(() => {
-      codeDraft.set(q.id, code);
+      codeDraft.set(key, code);
     }, 300);
     return () => {
       clearTimeout(t);
     };
-  }, [code, q.id]);
+  }, [code, key]);
 
   useEffect(() => () => handle.current?.cancel(), []);
+
+  useEffect(() => {
+    if (lang === 'python') warmPython();
+  }, [lang]);
 
   const running = run !== null && !run.done;
 
   const start = useCallback(() => {
     handle.current?.cancel();
     setTab('results');
-    handle.current = runCode(codeRef.current, tests, (u) => {
+    handle.current = runCode(lang, codeRef.current, tests, (u) => {
       setRun(u);
       if (u.done && !u.compileError) {
-        codingProgress.record(q.id, {
+        codingProgress.record(key, {
           passed: u.results.filter((r) => r?.status === 'pass').length,
           total: tests.length,
         });
       }
     });
-  }, [q.id, tests]);
+  }, [key, lang, tests]);
 
   const passedIn = (pi: number) =>
     run
@@ -90,6 +149,7 @@ function CodingWorkspace({ q }: { q: CodingQuestion }): React.ReactElement {
   return (
     <div className="workspace">
       <TopBar title={q.title}>
+        {q.python && <LanguagePicker lang={lang} onLang={onLang} />}
         {running ? (
           <Button
             variant="secondary"
@@ -148,8 +208,8 @@ function CodingWorkspace({ q }: { q: CodingQuestion }): React.ReactElement {
                   </span>
                 ))}
               </div>
-              <Markdown text={q.prompt} />
-              {q.parts.map((p, pi) => {
+              <Markdown text={view.prompt} />
+              {view.parts.map((p, pi) => {
                 const passed = passedIn(pi);
                 return (
                   <div key={p.title} className="part">
@@ -188,7 +248,7 @@ function CodingWorkspace({ q }: { q: CodingQuestion }): React.ReactElement {
                 not change your code.
               </p>
               <pre className="md-pre solution">
-                <code>{q.solution}</code>
+                <code>{view.solution}</code>
               </pre>
             </div>
           )}
@@ -199,7 +259,7 @@ function CodingWorkspace({ q }: { q: CodingQuestion }): React.ReactElement {
             <CodeEditor
               value={code}
               onChange={setCode}
-              language="typescript"
+              language={lang}
               onSubmit={start}
               data-id="code-editor"
               aria-label="Solution code editor"
@@ -242,8 +302,8 @@ function CodingWorkspace({ q }: { q: CodingQuestion }): React.ReactElement {
                       variant="error"
                       data-id="confirm-reset"
                       onClick={() => {
-                        setCode(q.starter);
-                        codeDraft.clear(q.id);
+                        setCode(view.starter);
+                        codeDraft.clear(key);
                         setConfirmReset(false);
                       }}
                     >
@@ -287,31 +347,48 @@ function CodingWorkspace({ q }: { q: CodingQuestion }): React.ReactElement {
                   </pre>
                 ) : (
                   <div className="empty">
-                    console.log output from your code appears here.
+                    {lang === 'python' ? 'print()' : 'console.log'} output from
+                    your code appears here.
                   </div>
                 )
               ) : !run ? (
                 <div className="empty">
                   Press <span className="kbd">⌘↵</span> or{' '}
-                  <strong>Run tests</strong> to check your solution. Your code
-                  runs in a sandboxed worker in this browser; types are
-                  stripped, not checked. You can <code>import</code> npm
-                  packages by name (loaded from esm.sh), e.g.{' '}
-                  <code>
-                    import {'{'} chunk {'}'} from &apos;lodash-es&apos;
-                  </code>
-                  .
+                  <strong>Run tests</strong> to check your solution.{' '}
+                  {lang === 'python' ? (
+                    <>
+                      Your code runs in Python 3 (Pyodide) in a worker in this
+                      browser. The standard library is available, and packages
+                      Pyodide ships, such as <code>numpy</code>, load on{' '}
+                      <code>import</code>. The first run loads Python, which
+                      takes a few seconds.
+                    </>
+                  ) : (
+                    <>
+                      Your code runs in a sandboxed worker in this browser;
+                      types are stripped, not checked. You can{' '}
+                      <code>import</code> npm packages by name (loaded from
+                      esm.sh), e.g.{' '}
+                      <code>
+                        import {'{'} chunk {'}'} from &apos;lodash-es&apos;
+                      </code>
+                      .
+                    </>
+                  )}
                 </div>
               ) : run.compileError ? (
                 <div className="compile-error">
-                  <strong>Could not compile</strong>
+                  <strong>
+                    {lang === 'python' ? 'Could not run' : 'Could not compile'}
+                  </strong>
                   <pre>{run.compileError}</pre>
                 </div>
               ) : (
                 <>
                   {run.loading && (
                     <div className="loading">
-                      Loading {run.loading.join(', ')} from esm.sh…
+                      Loading {run.loading.join(', ')}
+                      {lang === 'typescript' ? ' from esm.sh' : ''}…
                     </div>
                   )}
                   {run.done && totalPassed === tests.length && (
@@ -320,7 +397,7 @@ function CodingWorkspace({ q }: { q: CodingQuestion }): React.ReactElement {
                       edge cases next.
                     </div>
                   )}
-                  {q.parts.map((p) => (
+                  {view.parts.map((p) => (
                     <div key={p.title} className="result-group">
                       <div className="result-group-head">{p.title}</div>
                       {p.tests.map((t) => {

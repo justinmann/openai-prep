@@ -1,17 +1,35 @@
-import type { CodingTest } from '../../shared/questions/types';
+import type { CodingTest, Language } from '../../shared/questions/types';
 import {
   CompileError,
   transpile,
   type LogLine,
   type TestResult,
 } from '../../shared/runner/harness';
+import type { PyWorkerIn } from './pyWorker';
 import type { WorkerIn, WorkerOut } from './worker';
 
 /** A test may run synchronously this long before we assume an infinite loop. */
 const SYNC_HANG_MS = 5000;
 const MAX_LOG_LINES = 500;
-/** Fetching imported packages from the CDN may take this long. */
-const LOAD_MS = 30_000;
+/** Fetching imported packages (or the Python runtime) may take this long. */
+const LOAD_MS = 60_000;
+
+// One Python worker is kept between runs so Pyodide loads once. It is
+// discarded whenever a run is stopped early, since it may be stuck.
+let pyWorker: Worker | null = null;
+
+function getPyWorker(): Worker {
+  pyWorker ??= new Worker(new URL('./pyWorker.ts', import.meta.url), {
+    type: 'module',
+  });
+  return pyWorker;
+}
+
+/** Start loading Python before the first run. */
+export function warmPython(): void {
+  const msg: PyWorkerIn = { type: 'warm' };
+  getPyWorker().postMessage(msg);
+}
 
 export interface RunHandle {
   cancel: () => void;
@@ -28,7 +46,8 @@ export interface RunUpdate {
 }
 
 export function runCode(
-  ts: string,
+  language: Language,
+  source: string,
   tests: CodingTest[],
   onUpdate: (u: RunUpdate) => void,
 ): RunHandle {
@@ -44,25 +63,38 @@ export function runCode(
     onUpdate({ ...state, results: [...state.results], logs: [...state.logs] });
   };
 
-  let js: string;
-  try {
-    js = transpile(ts);
-  } catch (err) {
-    state.compileError =
-      err instanceof CompileError ? err.message : String(err);
-    state.done = true;
-    emit();
-    return { cancel: () => undefined };
+  let js = '';
+  if (language === 'typescript') {
+    try {
+      js = transpile(source);
+    } catch (err) {
+      state.compileError =
+        err instanceof CompileError ? err.message : String(err);
+      state.done = true;
+      emit();
+      return { cancel: () => undefined };
+    }
   }
 
-  const worker = new Worker(new URL('./worker.ts', import.meta.url), {
-    type: 'module',
-  });
+  const worker =
+    language === 'python'
+      ? getPyWorker()
+      : new Worker(new URL('./worker.ts', import.meta.url), {
+          type: 'module',
+        });
   let watchdog: ReturnType<typeof setTimeout> | undefined;
+  let finished = false;
 
   const finish = (reason?: string) => {
+    if (finished) return;
+    finished = true;
     clearTimeout(watchdog);
-    worker.terminate();
+    worker.onmessage = null;
+    worker.onerror = null;
+    if (language === 'typescript' || reason !== undefined) {
+      worker.terminate();
+      if (worker === pyWorker) pyWorker = null;
+    }
     if (reason !== undefined) {
       state.results = state.results.map((r, index) => {
         if (r) return r;
@@ -108,6 +140,8 @@ export function runCode(
       arm();
     } else if (m.type === 'result') {
       state.results[m.result.index] = m.result;
+    } else if (m.type === 'compileError') {
+      state.compileError = m.message;
     } else if (m.type === 'log') {
       if (state.logs.length < MAX_LOG_LINES) state.logs.push(m.line);
       else if (state.logs.length === MAX_LOG_LINES)
@@ -125,8 +159,13 @@ export function runCode(
   };
 
   arm();
-  const msg: WorkerIn = { js, tests };
-  worker.postMessage(msg);
+  if (language === 'python') {
+    const msg: PyWorkerIn = { type: 'run', code: source, tests };
+    worker.postMessage(msg);
+  } else {
+    const msg: WorkerIn = { js, tests };
+    worker.postMessage(msg);
+  }
   emit();
   return {
     cancel: () => {
